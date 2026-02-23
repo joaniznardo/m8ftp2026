@@ -1,0 +1,123 @@
+name: sftpgo-lab
+
+mgmt:
+  network: sftpgo-mgmt
+  ipv4-subnet: 172.20.50.0/24
+
+topology:
+  nodes:
+
+    # ─── SWITCH LAN (Linux bridge) ───────────────────────────────────────────
+    switch-lan:
+      kind: linux
+      image: sftpgo-lab/switch:latest
+      binds:
+        - ../configs/switch/init-bridge.sh:/init-bridge.sh:ro
+      exec:
+        - bash /init-bridge.sh
+      env:
+        BRIDGE_NAME: br-lan
+
+    # ─── ROUTER FRR ──────────────────────────────────────────────────────────
+    router-frr:
+      kind: linux
+      image: frrouting/frr:latest
+      binds:
+        - ../configs/frr/daemons:/etc/frr/daemons:ro
+        - ../configs/frr/frr.conf:/etc/frr/frr.conf:ro
+        - ../configs/frr/vtysh.conf:/etc/frr/vtysh.conf:ro
+        - ../scripts/router-init.sh:/router-init.sh:ro
+      exec:
+        - bash /router-init.sh
+      env:
+        LAN_IFACE: eth1
+        LAN_IP: 10.50.0.1/24
+
+    # ─── SERVIDOR SFTPGO — Etapa 5: FTPS (mateixa config que etapa 2) ────────
+    server:
+      kind: linux
+      image: drakkan/sftpgo:latest
+      binds:
+        - ../configs/sftpgo/etapa2/sftpgo.json:/etc/sftpgo/sftpgo.json:ro
+        - ../certs:/etc/sftpgo/certs:ro
+        - ../scripts/server-init.sh:/server-init.sh:ro
+      exec:
+        - bash /server-init.sh
+      ports:
+        - "8081:8080"
+      env:
+        SERVER_IP: 10.50.0.20
+        GW_IP: 10.50.0.1
+        DNS_IP: 10.50.0.53
+        HOSTNAME: demoftp.test
+        SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "true"
+        SFTPGO_DEFAULT_ADMIN_USERNAME: admin
+        SFTPGO_DEFAULT_ADMIN_PASSWORD: admin
+
+    # ─── CLIENT FILEZILLA ────────────────────────────────────────────────────
+    client:
+      kind: linux
+      image: lscr.io/linuxserver/filezilla:latest
+      binds:
+        - ../certs:/certs:ro
+        - ../scripts/client-init.sh:/client-init.sh:ro
+      exec:
+        - bash /client-init.sh
+      ports:
+        - "3001:3001"
+      shm-size: 1gb
+      env:
+        CLIENT_IP: 10.50.0.10
+        GW_IP: 10.50.0.1
+        DNS_IP: 10.50.0.53
+        PUID: "1000"
+        PGID: "1000"
+        TZ: Europe/Madrid
+        PASSWORD: labvnc
+        TITLE: "FileZilla - Lab SFTPGo Etapa 5"
+
+    # ─── COREDNS ─────────────────────────────────────────────────────────────
+    # La imatge oficial coredns/coredns és scratch (sense shell).
+    # La xarxa es configura des de lab.sh després del deploy (via nsenter).
+    coredns:
+      kind: linux
+      image: coredns/coredns:latest
+      binds:
+        - ../configs/coredns/Corefile:/Corefile:ro
+        - ../configs/coredns/zones:/zones:ro
+
+    # ─── CLIENT LFTP — Etapa 5 ───────────────────────────────────────────────
+    client-lftp:
+      kind: linux
+      image: sftpgo-lab/client-lftp:latest
+      binds:
+        - ../certs:/home/ftpuser/certs:ro
+        - ../scripts/init-client-lftp.sh:/init-client-lftp.sh:ro
+      exec:
+        - bash /init-client-lftp.sh
+      env:
+        NODE_IP: 10.50.0.11
+        GW_IP: 10.50.0.1
+        DNS_IP: 10.50.0.53
+
+    # ─── CLIENT RCLONE — Etapa 5 ─────────────────────────────────────────────
+    client-rclone:
+      kind: linux
+      image: sftpgo-lab/client-rclone:latest
+      binds:
+        - ../certs:/home/ftpuser/certs:ro
+        - ../scripts/init-client-rclone.sh:/init-client-rclone.sh:ro
+      exec:
+        - bash /init-client-rclone.sh
+      env:
+        NODE_IP: 10.50.0.12
+        GW_IP: 10.50.0.1
+        DNS_IP: 10.50.0.53
+
+  links:
+    - endpoints: ["switch-lan:eth1", "router-frr:eth1"]
+    - endpoints: ["switch-lan:eth2", "server:eth1"]
+    - endpoints: ["switch-lan:eth3", "client:eth1"]
+    - endpoints: ["switch-lan:eth4", "coredns:eth1"]
+    - endpoints: ["switch-lan:eth7", "client-lftp:eth1"]
+    - endpoints: ["switch-lan:eth8", "client-rclone:eth1"]

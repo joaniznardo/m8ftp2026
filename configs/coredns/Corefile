@@ -1,0 +1,24 @@
+. {
+    # Zona local del laboratori: test
+    file /zones/db.test test
+
+    # Zona inversa 10.50.0.x
+    file /zones/db.50.10.in-addr.arpa 0.50.10.in-addr.arpa
+
+    # Forward d'altres consultes als resolvers públics
+    forward . 8.8.8.8 1.1.1.1 {
+        max_concurrent 1000
+    }
+
+    # Cache de resolucions
+    cache 300
+
+    # Log d'errors
+    errors
+
+    # Health check
+    health :8082
+
+    # Mètriques Prometheus (opcional)
+    # prometheus :9153
+}

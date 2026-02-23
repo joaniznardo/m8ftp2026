@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab FTP/FTPS amb SFTPGo i Containerlab</title>
+
+  <!-- Outfit font (local fallback via system-ui if offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- reveal.js local -->
+  <link rel="stylesheet" href="reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="reveal.js/dist/theme/black.css" id="theme">
+  <link rel="stylesheet" href="reveal.js/plugin/highlight/monokai.css">
+
+  <style>
+    /* ── Brand palette ─────────────────────────────────────────── */
+    :root {
+      --blue:       #2f29a1;
+      --blue-light: #4a43c8;
+      --blue-dark:  #1e1a6e;
+      --green:      #30efbc;
+      --green-dim:  #1db88d;
+      --bg:         #0e0d1f;
+      --bg-card:    #16153a;
+      --bg-code:    #0a0918;
+      --text:       #e8e8f0;
+      --text-muted: #8884bb;
+      --danger:     #ff4f6d;
+      --warning:    #ffb833;
+    }
+
+    /* ── Base ──────────────────────────────────────────────────── */
+    .reveal,
+    .reveal body,
+    .reveal .slides {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .reveal .slides section {
+      text-align: left;
+      height: 100%;
+      box-sizing: border-box;
+    }
+
+    /* ── Headings ──────────────────────────────────────────────── */
+    .reveal h1 {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-weight: 800;
+      font-size: 1.75em;
+      color: var(--green);
+      text-align: center;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.3em;
+    }
+    .reveal h2 {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 1.3em;
+      color: var(--green);
+      border-bottom: 2px solid var(--blue-light);
+      padding-bottom: 0.2em;
+      margin-bottom: 0.6em;
+      text-align: left;
+    }
+    .reveal h3 {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 0.95em;
+      color: var(--green);
+      margin-bottom: 0.4em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Code ──────────────────────────────────────────────────── */
+    .reveal pre {
+      width: 100%;
+      font-size: 0.52em;
+      background: var(--bg-code);
+      border: 1px solid var(--blue-light);
+      border-radius: 6px;
+      box-shadow: 0 0 20px rgba(47,41,161,0.3);
+      margin: 0;
+    }
+    .reveal pre code {
+      padding: 14px 18px;
+      max-height: 340px;
+    }
+    .reveal code:not(pre code) {
+      background: rgba(47,41,161,0.3);
+      border: 1px solid rgba(48,239,188,0.25);
+      padding: 1px 7px;
+      border-radius: 4px;
+      color: var(--green);
+      font-size: 0.88em;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    /* ── Highlight box around key config lines ─────────────────── */
+    .hl {
+      background: rgba(48,239,188,0.12);
+      border-left: 3px solid var(--green);
+      display: block;
+      margin: 0 -18px;
+      padding: 0 18px;
+    }
+
+    /* ── Layout helpers ────────────────────────────────────────── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* ── Cards ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--blue-light);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.68em;
+    }
+    .card-green  { border-color: var(--green-dim); }
+    .card-danger { border-color: var(--danger); }
+    .card-warn   { border-color: var(--warning); }
+
+    /* ── Info/warning/danger/success boxes ─────────────────────── */
+    .box {
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.68em;
+      margin: 8px 0;
+    }
+    .box-green {
+      background: rgba(48,239,188,0.08);
+      border-left: 4px solid var(--green);
+    }
+    .box-blue {
+      background: rgba(47,41,161,0.25);
+      border-left: 4px solid var(--blue-light);
+    }
+    .box-danger {
+      background: rgba(255,79,109,0.1);
+      border-left: 4px solid var(--danger);
+    }
+    .box-warn {
+      background: rgba(255,184,51,0.1);
+      border-left: 4px solid var(--warning);
+    }
+
+    /* ── Badges ────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 3px 11px;
+      border-radius: 20px;
+      font-size: 0.62em;
+      font-weight: 700;
+      margin: 2px;
+      vertical-align: middle;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge-blue    { background: var(--blue); color: var(--green); }
+    .badge-green   { background: var(--green); color: var(--blue-dark); }
+    .badge-danger  { background: var(--danger); color: #fff; }
+    .badge-warn    { background: var(--warning); color: #1a1200; }
+    .badge-muted   { background: rgba(255,255,255,0.1); color: var(--text-muted); }
+
+    /* ── Tables ────────────────────────────────────────────────── */
+    .reveal table {
+      font-size: 0.62em;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .reveal table th {
+      background: var(--blue);
+      color: var(--green);
+      padding: 6px 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .reveal table td {
+      padding: 6px 10px;
+      border: 1px solid rgba(47,41,161,0.4);
+    }
+    .reveal table tr:nth-child(even) td {
+      background: rgba(47,41,161,0.12);
+    }
+
+    /* ── Port badges ───────────────────────────────────────────── */
+    .port {
+      display: inline-block;
+      background: var(--blue-dark);
+      border: 1px solid var(--blue-light);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: monospace;
+      font-size: 0.8em;
+      color: var(--green);
+      margin: 2px;
+    }
+
+    /* ── Topo box ──────────────────────────────────────────────── */
+    .topo {
+      background: var(--bg-code);
+      border: 1px solid var(--blue-light);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.5em;
+      line-height: 1.7;
+      color: var(--text);
+      box-shadow: 0 0 24px rgba(47,41,161,0.4);
+    }
+    .topo .t-green { color: var(--green); font-weight: 600; }
+    .topo .t-blue  { color: #7b98ff; }
+    .topo .t-muted { color: var(--text-muted); }
+
+    /* ── Stage title slide ─────────────────────────────────────── */
+    .stage-header {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--bg-card) 100%);
+      border: 2px solid var(--blue-light);
+      border-radius: 12px;
+      padding: 24px 30px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(47,41,161,0.5);
+    }
+    .stage-header h1 {
+      font-size: 1.6em;
+      margin-top: 12px;
+    }
+    .stage-num {
+      font-size: 4em;
+      font-weight: 800;
+      color: var(--blue-light);
+      opacity: 0.3;
+      line-height: 1;
+      position: absolute;
+      top: 10px;
+      right: 20px;
+    }
+
+    /* ── Step numbers ──────────────────────────────────────────── */
+    .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: var(--blue);
+      color: var(--green);
+      border-radius: 50%;
+      font-size: 0.75em;
+      font-weight: 700;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ── Config highlight panel ────────────────────────────────── */
+    .config-panel {
+      background: var(--bg-code);
+      border: 2px solid var(--green-dim);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .config-panel::before {
+      content: 'CONFIG CLAU';
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: var(--green-dim);
+      color: var(--bg-dark);
+      font-size: 0.45em;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-bottom-left-radius: 6px;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Flow diagram ──────────────────────────────────────────── */
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.65em;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+    .flow-node {
+      background: var(--bg-card);
+      border: 1px solid var(--blue-light);
+      border-radius: 6px;
+      padding: 5px 12px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .flow-arrow {
+      color: var(--green);
+      font-size: 1.2em;
+    }
+    .flow-node.green { border-color: var(--green-dim); color: var(--green); }
+    .flow-node.blue  { background: var(--blue); color: var(--green); }
+
+    /* ── Misc ──────────────────────────────────────────────────── */
+    .reveal ul, .reveal ol { margin-left: 1.2em; }
+    .reveal li { margin-bottom: 5px; line-height: 1.4; }
+    .center { text-align: center; }
+    .small  { font-size: 0.68em; }
+    .muted  { color: var(--text-muted); }
+    .green  { color: var(--green); }
+    .mono   { font-family: monospace; }
+
+    /* ── Scrollable code override ───────────────────────────────── */
+    .reveal pre code.wrap {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Nav hint bottom of vertical stacks */
+    .nav-hint {
+      text-align: center;
+      font-size: 0.5em;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 0 — PORTADA + ARQUITECTURA + COMPONENTS                       ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 0.0 Títol -->
+  <section>
+    <div style="text-align:center; padding: 10px 0 0;">
+      <div style="display:inline-block; border:2px solid var(--blue-light);
+                  border-radius:50%; width:64px; height:64px; line-height:64px;
+                  font-size:1.8em; margin-bottom:12px;">🖧</div>
+      <h1 style="font-size:1.8em; margin-bottom:8px; text-align:center;">
+        Laboratori FTP/FTPS<br>
+        <span style="color:var(--text-muted); font-weight:400; font-size:0.65em;">
+          amb SFTPGo i Containerlab
+        </span>
+      </h1>
+      <div style="width:60%;margin:16px auto; border-top:1px solid var(--blue-light);"></div>
+      <div class="grid-3" style="font-size:0.65em; text-align:center; margin-top:16px; gap:8px;">
+        <div class="card" style="background:rgba(47,41,161,0.25); border-color:var(--blue-light);">
+          <div class="badge badge-blue" style="margin-bottom:6px;">Etapa 1</div><br>
+          <span class="muted">FTP sense xifrat</span>
+        </div>
+        <div class="card card-green">
+          <div class="badge badge-green" style="margin-bottom:6px;">Etapa 2</div><br>
+          <span class="muted">FTPS/FTPES + mkcert</span>
+        </div>
+        <div class="card card-warn">
+          <div class="badge badge-warn" style="margin-bottom:6px;">Etapa 3</div><br>
+          <span class="muted">MinIO S3 Storage</span>
+        </div>
+      </div>
+      <div class="grid-3" style="font-size:0.65em; text-align:center; margin-top:8px; gap:8px;">
+        <div class="card" style="border-color:#7b56e0; background:rgba(123,86,224,0.15);">
+          <div class="badge" style="background:#7b56e0;color:#fff;margin-bottom:6px;">Etapa 4</div><br>
+          <span class="muted">Keycloak OIDC</span>
+        </div>
+        <div class="card" style="background:rgba(47,41,161,0.25); border-color:var(--blue-light);">
+          <div class="badge badge-blue" style="margin-bottom:6px;">Etapa 5</div><br>
+          <span class="muted">Clients textuals FTP</span>
+        </div>
+        <div class="card card-green">
+          <div class="badge badge-green" style="margin-bottom:6px;">Etapa 6</div><br>
+          <span class="muted">Proxy invers + webs</span>
+        </div>
+      </div>
+      <div style="margin-top:20px; font-size:0.5em; color:var(--text-muted);">
+        Containerlab · FRR Router · CoreDNS · SFTPGo · Ubuntu 24.04
+      </div>
+    </div>
+    <div class="nav-hint">↓ navega verticalment per cada etapa · → canvia d'etapa</div>
+  </section>
+
+  <!-- 0.1 Arquitectura de xarxa -->
+  <section>
+    <h2>Arquitectura de la Xarxa</h2>
+    <div class="topo">
+<pre style="background:transparent;border:none;box-shadow:none;font-size:1em;padding:0;margin:0;">
+  <span class="t-muted">HOST LINUX</span>
+  │
+  ├─ <span class="t-blue">https://localhost:3001</span>  → FileZilla GUI (interfície web)
+  ├─ <span class="t-blue">http://localhost:8081</span>   → SFTPGo Web Admin
+  ├─ <span class="t-blue">http://localhost:9000</span>   → MinIO S3 API       <span class="t-muted">(Etapa 3)</span>
+  ├─ <span class="t-blue">http://localhost:8180</span>   → Keycloak Admin     <span class="t-muted">(Etapa 4)</span>
+  └─ <span class="t-blue">http://localhost:8091</span>   → Proxy invers nginx <span class="t-muted">(Etapa 6)</span>
+
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  <span class="t-green">Xarxa LAN 10.50.0.0/24</span>                                     ║
+  ║                                                              ║
+  ║  [<span class="t-green">client</span>]    10.50.0.10   FileZilla (WebRTC/Selkies)       ║
+  ║  [<span class="t-green">server</span>]    10.50.0.20   SFTPGo (FTP · FTPES · FTPS)     ║
+  ║  [<span class="t-green">coredns</span>]   10.50.0.53   CoreDNS → demoftp.test          ║
+  ║  [<span class="t-green">router</span>]    10.50.0.1    FRR Zebra (gateway LAN)          ║
+  ║  [<span class="t-green">switch</span>]                 Linux bridge (br-lan)             ║
+  ║                                                              ║
+  ║  [<span class="t-blue">rustfs</span>]    10.50.0.30   MinIO S3 storage  <span class="t-muted">← Etapa 3</span>    ║
+  ║  [<span class="t-blue">keycloak</span>]  10.50.0.40   Keycloak IdP OIDC <span class="t-muted">← Etapa 4</span>    ║
+  ║                                                              ║
+  ║  [<span class="t-blue">client-lftp</span>]   10.50.0.11  lftp CLI          <span class="t-muted">← Etapa 5</span>    ║
+  ║  [<span class="t-blue">client-rclone</span>] 10.50.0.12  rclone multi-bckt <span class="t-muted">← Etapa 5</span>    ║
+  ║                                                              ║
+  ║  [<span class="t-blue">proxy</span>]     10.50.0.60   nginx proxy invers <span class="t-muted">← Etapa 6</span>   ║
+  ║  [<span class="t-blue">web01</span>]     10.50.0.61   nginx web01       <span class="t-muted">← Etapa 6</span>    ║
+  ║  [<span class="t-blue">web02</span>]     10.50.0.62   nginx web02       <span class="t-muted">← Etapa 6</span>    ║
+  ║  [<span class="t-blue">web03</span>]     10.50.0.63   Angie web03       <span class="t-muted">← Etapa 6</span>    ║
+  ╚══════════════════════════════════════════════════════════════╝
+</pre>
+    </div>
+    <div class="box box-blue" style="margin-top:8px; font-size:0.6em;">
+      <strong>Domini FTP:</strong> <code>demoftp.test</code> → 10.50.0.20 &nbsp;|&nbsp;
+      <strong>DNS:</strong> CoreDNS a 10.50.0.53 &nbsp;|&nbsp;
+      <strong>Passiu FTP:</strong> ports 50000–50100
+    </div>
+  </section>
+
+  <!-- 0.2 Components i Desplegament -->
+  <section>
+    <h2>Components i Desplegament</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Nodes actius (Etapes 1–2)</h3>
+        <div class="card card-green" style="margin-bottom:8px;">
+          <strong class="green">Server — SFTPGo</strong>
+          <span class="port">:21</span><span class="port">:990</span><span class="port">:8080</span><br>
+          <span class="muted small">Servidor FTP/FTPS/FTPES modern. API REST, web admin, S3, auth externa.</span>
+        </div>
+        <div class="card" style="margin-bottom:8px;">
+          <strong class="green">Client — FileZilla</strong>
+          <span class="port">:3001</span><br>
+          <span class="muted small">Alpine · FileZilla · WebRTC (Selkies). Accés GUI via navegador.</span>
+        </div>
+        <div class="card">
+          <strong class="green">CoreDNS</strong>
+          <span class="port">:53</span><br>
+          <span class="muted small">Zona <code>.test</code> — resol <code>demoftp.test</code> i tots els nodes.</span>
+        </div>
+      </div>
+      <div>
+        <h3>Gestió del lab</h3>
+        <pre><code class="language-bash"># Comprovar prerequisits
+./lab.sh check
+
+# Construir imatges
+./lab.sh build
+
+# Desplegar etapa N (requereix sudo)
+./lab.sh deploy N
+
+# Shell a un node
+./lab.sh shell server
+./lab.sh shell client
+
+# Logs en temps real
+./lab.sh logs server
+
+# Destruir el lab
+./lab.sh destroy</code></pre>
+      </div>
+    </div>
+  </section>
+
+</section><!-- /columna 0 -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 1 — ETAPA 1: FTP SENSE XIFRAT                                ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 1.0 Portada Etapa 1 -->
+  <section>
+    <div class="stage-header">
+      <div class="stage-num">1</div>
+      <div class="badge badge-danger" style="font-size:0.8em; padding:5px 18px;">Sense xifrat</div>
+      <h1>FTP Tradicional</h1>
+      <p class="muted small" style="text-align:center;">
+        SFTPGo · Port 21 · Text pla · Mode passiu
+      </p>
+      <div style="margin-top:14px;">
+        <span class="badge badge-danger">Credencials en clar</span>
+        <span class="badge badge-danger">Dades sense xifrar</span>
+        <span class="badge badge-warn">Xarxa controlada</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div class="flow-node">FileZilla</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node" style="color:var(--danger); border-color:var(--danger);">:21 text pla</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">SFTPGo</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node">/srv/sftpgo/data</div>
+    </div>
+  </section>
+
+  <!-- 1.1 Teoria FTP + Config clau -->
+  <section>
+    <h2>Etapa 1 — Protocol FTP i Configuració</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Canals FTP</h3>
+        <div class="card" style="margin-bottom:8px;">
+          <strong class="green">Canal de control</strong> <span class="port">:21</span><br>
+          Comandes ASCII: <code>USER</code> <code>PASS</code> <code>LIST</code> <code>STOR</code> <code>RETR</code>
+        </div>
+        <div class="card" style="margin-bottom:8px;">
+          <strong class="green">Canal de dades</strong> <span class="port">:50000–50100</span><br>
+          Nou per cada transferència. Mode passiu: client → servidor.
+        </div>
+        <div class="box box-danger">
+          <strong>Riscos:</strong> usuari, contrasenya i dades viatgen en <strong>text pla</strong> — visibles amb <code>tcpdump</code>.
+        </div>
+      </div>
+      <div>
+        <h3>sftpgo.json — Etapa 1</h3>
+        <div class="config-panel">
+          <pre style="border:none; box-shadow:none; border-radius:0;"><code class="language-json" style="font-size:0.95em;">"ftpd": {
+  "bindings": [{
+    "port": 21,
+<span class="hl">    "tls_mode": 0,     // 0 = sense TLS</span>
+    "min_tls_version": 12,
+    "debug": false
+  }],
+  "banner": "Benvingut al Lab - Etapa 1",
+  "passive_port_range": {
+<span class="hl">    "start": 50000, "end": 50100</span>
+  }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1.2 Connexió i captura -->
+  <section>
+    <h2>Etapa 1 — Connexió i Captura de Tràfic</h2>
+    <div class="grid-2">
+      <div>
+        <h3>FileZilla — Gestor de llocs</h3>
+        <div class="card">
+          <table>
+            <tr><th>Camp</th><th>Valor</th></tr>
+            <tr><td>Protocol</td><td>FTP</td></tr>
+            <tr><td>Host</td><td><code>demoftp.test</code></td></tr>
+            <tr><td>Port</td><td><code>21</code></td></tr>
+            <tr><td>Xifratge</td><td><span class="badge badge-danger">Cap (text pla)</span></td></tr>
+            <tr><td>Usuari</td><td><code>ftpuser</code></td></tr>
+            <tr><td>Contrasenya</td><td><code>ftppassword</code></td></tr>
+          </table>
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          GUI via navegador: <code>https://localhost:3001</code>
+        </div>
+      </div>
+      <div>
+        <h3>Demostració: credencials en clar</h3>
+        <pre><code class="language-bash"># Capturar tràfic FTP
+tcpdump -i eth1 port 21 \
+  -w /tmp/ftp.pcap &
+
+# Connectar
+curl -v ftp://ftpuser:ftppassword@demoftp.test/
+
+kill %1
+
+# Llegir captura → CREDENCIALS VISIBLES!
+tcpdump -r /tmp/ftp.pcap -A \
+  | grep -E "USER|PASS"</code></pre>
+        <div class="box box-danger" style="margin-top:8px;">
+          <code style="color:var(--danger);">USER ftpuser</code><br>
+          <code style="color:var(--danger);">PASS ftppassword  ← EN CLAR!</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1.3 Preguntes reflexió -->
+  <section>
+    <h2>Etapa 1 — Preguntes de Reflexió</h2>
+    <ol style="font-size:0.65em; columns:2; column-gap:24px;">
+      <li>Quin port utilitza el mode FTP actiu vs. passiu per a les dades? Quines implicacions té per al firewall?</li>
+      <li>En capturar el tràfic amb <code>tcpdump</code>, quina informació sensible heu pogut veure?</li>
+      <li>Per quins motius FTP segueix sent usat en entorns interns malgrat els seus riscos?</li>
+      <li>Quina diferència hi ha entre mode actiu i passiu? Quin usa FileZilla per defecte?</li>
+      <li>Quin codi FTP indica inici de sessió correcte? I que el directori ha canviat?</li>
+      <li>Com afecta un NAT entre client i servidor al mode actiu de FTP? Com es resol?</li>
+      <li>Per quina raó SFTPGo no és un servidor FTP tradicional? Quin és el seu avantatge?</li>
+      <li>Explica el paper del bridge Linux a <code>switch-lan</code>. Per quina raó és millor en containerlab?</li>
+      <li>Qui controla la política de ports passius? Quins avantatges té un rang reduït?</li>
+      <li>Compara el rendiment de transferència entre FTP i SFTP. Quins factors influencien la diferència?</li>
+    </ol>
+  </section>
+
+</section><!-- /columna 1 -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 2 — ETAPA 2: FTPS/FTPES AMB MKCERT                          ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 2.0 Portada Etapa 2 -->
+  <section>
+    <div class="stage-header" style="border-color:var(--green-dim);">
+      <div class="stage-num" style="color:var(--green-dim);">2</div>
+      <div class="badge badge-green" style="font-size:0.8em; padding:5px 18px;">TLS 1.2+</div>
+      <h1>FTPS / FTPES amb mkcert</h1>
+      <p class="muted small" style="text-align:center;">
+        Certificats locals · domini demoftp.test · ports 21 i 990
+      </p>
+      <div style="margin-top:14px;">
+        <span class="badge badge-green">Credencials xifrades</span>
+        <span class="badge badge-green">Canal de dades xifrat</span>
+        <span class="badge badge-blue">CA local mkcert</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div class="flow-node">FileZilla</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">AUTH TLS / :990</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">SFTPGo + cert</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node">/srv/sftpgo/data</div>
+    </div>
+  </section>
+
+  <!-- 2.1 mkcert + Config clau -->
+  <section>
+    <h2>Etapa 2 — Certificats mkcert + Config SFTPGo</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Generar certificats</h3>
+        <pre><code class="language-bash"># Instal·lar CA al sistema
+mkcert -install
+
+# Generar per al domini + IP
+mkcert \
+  -cert-file certs/demoftp.test.crt \
+  -key-file  certs/demoftp.test.key \
+  demoftp.test server.test \
+  10.50.0.20 localhost
+
+# Copiar CA als certs del lab
+cp "$(mkcert -CAROOT)/rootCA.pem" \
+   certs/
+
+# O amb l'script del lab:
+./lab.sh certs</code></pre>
+      </div>
+      <div>
+        <h3>sftpgo.json — Etapa 2</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-json" style="font-size:0.88em;">"ftpd": {
+  "bindings": [
+    {
+      "port": 21,
+<span class="hl">      "tls_mode": 2,  // FTPES explícit</span>
+<span class="hl">      "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",</span>
+<span class="hl">      "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"</span>
+    },
+    {
+      "port": 990,
+<span class="hl">      "tls_mode": 3,  // FTPS implícit</span>
+<span class="hl">      "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",</span>
+<span class="hl">      "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"</span>
+    }
+  ]
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.2 FTPES vs FTPS + verificació -->
+  <section>
+    <h2>Etapa 2 — FTPES vs FTPS i Verificació</h2>
+    <table style="margin-bottom:12px;">
+      <tr>
+        <th>Característica</th>
+        <th>FTPES — Explícit</th>
+        <th>FTPS — Implícit</th>
+      </tr>
+      <tr>
+        <td>Port</td>
+        <td><span class="port">21</span></td>
+        <td><span class="port">990</span></td>
+      </tr>
+      <tr>
+        <td>Inici TLS</td>
+        <td>Comanda <code>AUTH TLS</code></td>
+        <td>TLS des del primer byte</td>
+      </tr>
+      <tr>
+        <td>tls_mode</td>
+        <td><span class="badge badge-blue">2</span></td>
+        <td><span class="badge badge-blue">3</span></td>
+      </tr>
+      <tr>
+        <td>FileZilla</td>
+        <td>FTP sobre TLS explícit</td>
+        <td>FTP sobre TLS implícit</td>
+      </tr>
+    </table>
+    <pre><code class="language-bash"># Verificar handshake TLS (FTPES)
+openssl s_client -connect demoftp.test:21 \
+  -starttls ftp \
+  -CAfile /home/ftpuser/certs/rootCA.pem
+
+# Verificar handshake TLS (FTPS implícit)
+openssl s_client -connect demoftp.test:990 \
+  -CAfile /home/ftpuser/certs/rootCA.pem</code></pre>
+    <div class="box box-green" style="font-size:0.6em;">
+      <strong>Resultat esperat:</strong>
+      <code>Subject: CN=demoftp.test &nbsp;|&nbsp; Issuer: CN=mkcert &nbsp;|&nbsp; DNS:demoftp.test, IP:10.50.0.20</code>
+    </div>
+  </section>
+
+  <!-- 2.3 Preguntes reflexió -->
+  <section>
+    <h2>Etapa 2 — Preguntes de Reflexió</h2>
+    <ol style="font-size:0.65em; columns:2; column-gap:24px;">
+      <li>Quina diferència fonamental hi ha entre <strong>FTPS implícit</strong> (990) i <strong>FTPES explícit</strong> (21 + AUTH TLS)?</li>
+      <li><code>mkcert</code> usa una CA local. Per quina raó no seria vàlida a Internet públic? Quan és apropiada?</li>
+      <li>En FTPES, en quin moment exacte s'inicia el xifrat TLS? I en FTPS implícit?</li>
+      <li>Compara la captura <code>tcpdump</code> de l'Etapa 1 vs. l'Etapa 2. Quines dades ja no pots llegir?</li>
+      <li>Quines dades conté un certificat X.509? Explica: Subject, Issuer, SAN, Validity, Public Key.</li>
+      <li>Si un atacant intercepta el tràfic FTPS, quina informació podria obtenir tot i el xifrat?</li>
+      <li>Quina versió mínima de TLS usa SFTPGo per defecte (<code>min_tls_version: 12</code>)? Per quina raó no acceptar TLS 1.0/1.1?</li>
+      <li>Els ports passius 50000–50100 també estan xifrats en FTPS. Com es negocia el xifrat del canal de dades?</li>
+      <li>Si el certificat no inclou la IP 10.50.0.20 als SANs, quin error rebràs al connectar per IP?</li>
+      <li>Compara mkcert amb Let's Encrypt. Quins avantatges i limitacions té cadascun per a lab vs. producció?</li>
+    </ol>
+  </section>
+
+</section><!-- /columna 2 -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 3 — ETAPA 3: MINIO S3 STORAGE                               ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 3.0 Portada Etapa 3 -->
+  <section>
+    <div class="stage-header" style="border-color:var(--warning);">
+      <div class="stage-num" style="color:var(--warning);">3</div>
+      <div class="badge badge-warn" style="font-size:0.8em; padding:5px 18px;">Storage extern</div>
+      <h1 style="color:var(--warning);">MinIO S3 Storage</h1>
+      <p class="muted small" style="text-align:center;">
+        Virtual filesystem S3 · bucket sftpgo-data · API compatible AWS S3
+      </p>
+      <div style="margin-top:14px;">
+        <span class="badge badge-warn">Stateless server</span>
+        <span class="badge badge-warn">S3 compatible</span>
+        <span class="badge badge-green">TLS 1.2+ mantingut</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div class="flow-node">FileZilla</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">FTPES :21</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">SFTPGo</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node" style="border-color:var(--warning);color:var(--warning);">MinIO :9000</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node">bucket/prefix</div>
+    </div>
+  </section>
+
+  <!-- 3.1 Arquitectura i activació -->
+  <section>
+    <h2>Etapa 3 — Arquitectura i Activació del Node</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Nou node: rustfs (MinIO)</h3>
+        <div class="card card-warn">
+          <strong style="color:var(--warning);">MinIO</strong>
+          <span class="port">:9000</span><span class="port">:9001</span><br>
+          <span class="muted small">IP: 10.50.0.30 · Bucket: sftpgo-data<br>
+          Consola web: <code>http://localhost:9001</code></span>
+        </div>
+        <div class="box box-warn" style="margin-top:8px;">
+          <strong>Activació:</strong> L'etapa 3 té la seva pròpia topologia <code>topologies/etapa3.yml</code> amb el node <code>rustfs</code> inclòs:<br>
+          <code>./lab.sh destroy &amp;&amp; ./lab.sh deploy 3</code>
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          <strong>Credencials MinIO:</strong><br>
+          Access Key: <code>rustfs-access-key</code><br>
+          Secret: <code>rustfs-secret-key</code>
+        </div>
+      </div>
+      <div>
+        <h3>topologies/etapa3.yml — node rustfs</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-yaml" style="font-size:0.88em;">rustfs:
+  kind: linux
+<span class="hl">  image: minio/minio:latest</span>
+  exec:
+    - bash -c "ip addr add 10.50.0.30/24
+        dev eth1 && ip link set eth1 up
+        && minio server /data
+<span class="hl">        --console-address :9001"</span>
+  ports:
+<span class="hl">    - "9000:9000"  # S3 API</span>
+<span class="hl">    - "9001:9001"  # Console web</span>
+  env:
+<span class="hl">    MINIO_ROOT_USER: rustfs-access-key</span>
+<span class="hl">    MINIO_ROOT_PASSWORD: rustfs-secret-key</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3.2 Config SFTPGo S3 -->
+  <section>
+    <h2>Etapa 3 — Virtual Filesystem S3 a SFTPGo</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Crear bucket i usuari S3</h3>
+        <pre><code class="language-bash"># Instal·lar mc (MinIO Client) al client
+curl -Lo /usr/local/bin/mc \
+  https://dl.min.io/client/mc/release/linux-amd64/mc
+chmod +x /usr/local/bin/mc
+
+# Configurar alias
+mc alias set rustfs \
+  http://rustfs.test:9000 \
+  rustfs-access-key \
+  rustfs-secret-key
+
+# Crear bucket
+mc mb rustfs/sftpgo-data
+
+# Verificar fitxers pujats via FTP
+mc ls rustfs/sftpgo-data/ftpuser/</code></pre>
+      </div>
+      <div>
+        <h3>Configuració d'usuari — filesystem S3</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-json" style="font-size:0.88em;">// Via API o Web Admin → Usuari → Filesystem
+{
+  "filesystem": {
+<span class="hl">    "provider": 1,  // 1 = S3</span>
+    "s3config": {
+<span class="hl">      "bucket": "sftpgo-data",</span>
+<span class="hl">      "endpoint": "http://rustfs.test:9000",</span>
+      "region": "us-east-1",
+<span class="hl">      "access_key": "rustfs-access-key",</span>
+<span class="hl">      "access_secret": "rustfs-secret-key",</span>
+<span class="hl">      "key_prefix": "ftpuser/",</span>
+      "upload_part_size": 5,
+      "upload_concurrency": 4
+    }
+  }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3.3 Verificació -->
+  <section>
+    <h2>Etapa 3 — Verificació i Comparació</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Flux de dades verificat</h3>
+        <div class="box box-green" style="margin-bottom:8px;">
+          <span class="step">1</span> Puja un fitxer via FileZilla (FTPES :21)
+        </div>
+        <div class="box box-green" style="margin-bottom:8px;">
+          <span class="step">2</span> SFTPGo reb el fitxer i el puja a MinIO via S3 PUT
+        </div>
+        <div class="box box-green" style="margin-bottom:8px;">
+          <span class="step">3</span> Verifica al bucket:<br>
+          <code>mc ls rustfs/sftpgo-data/ftpuser/</code>
+        </div>
+        <div class="box box-warn">
+          El tràfic SFTPGo → MinIO és HTTP sense TLS en aquest lab. En producció caldria HTTPS al endpoint S3.
+        </div>
+      </div>
+      <div>
+        <h3>Taula comparativa</h3>
+        <table>
+          <tr><th>Aspecte</th><th>Etapa 2</th><th>Etapa 3</th></tr>
+          <tr><td>Protocol FTP</td><td>FTPES+FTPS</td><td>FTPES+FTPS</td></tr>
+          <tr><td>Emmagatzematge</td><td>Filesystem local</td><td><strong class="green">S3 (MinIO)</strong></td></tr>
+          <tr><td>Backend</td><td>/srv/sftpgo/data</td><td><strong class="green">bucket S3</strong></td></tr>
+          <tr><td>Escalabilitat</td><td>Disc local</td><td><strong class="green">Alta</strong></td></tr>
+          <tr><td>Nodes actius</td><td>5</td><td><strong class="green">6</strong></td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3.4 Preguntes reflexió -->
+  <section>
+    <h2>Etapa 3 — Preguntes de Reflexió</h2>
+    <ol style="font-size:0.65em; columns:2; column-gap:24px;">
+      <li>Quin avantatge operatiu té usar un backend S3 en lloc d'un filesystem local? Pensa en HA i backup.</li>
+      <li>Quan SFTPGo usa S3, el fitxer es guarda primer en memòria o fa streaming directe al bucket? Implicacions per a fitxers grans?</li>
+      <li>Com es mapegen les comandes FTP (<code>STOR</code>, <code>RETR</code>) a operacions S3 (<code>PUT</code>, <code>GET</code>)?</li>
+      <li>El tràfic SFTPGo → MinIO és HTTP sense xifrat. En quin escenari real seria acceptable? I en quin no?</li>
+      <li>Si MinIO és temporalment inaccesible, quin error rep l'usuari FTP? Com afegiríeu resiliència?</li>
+      <li>El paràmetre <code>key_prefix</code> separa fitxers per usuari. Quines alternatives hi ha (bucket per usuari, IAM policies)?</li>
+      <li>Quina diferència hi ha entre consistència eventual de S3 i consistència immediata de filesystem? Afecta FileZilla?</li>
+      <li>Si un usuari esborra un fitxer via FTP, desapareix immediatament del bucket? Quin mecanisme el protegeix?</li>
+      <li>Les credencials S3 estan en clar al config. Quines alternatives segures hi ha en entorns de contenidors?</li>
+      <li>Compara SFTPGo + S3 amb un servidor SFTP tradicional. Diferències en manteniment, rendiment i seguretat.</li>
+    </ol>
+  </section>
+
+</section><!-- /columna 3 -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 4 — ETAPA 4: KEYCLOAK OIDC                                  ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 4.0 Portada Etapa 4 -->
+  <section>
+    <div class="stage-header" style="border-color:#7b56e0;">
+      <div class="stage-num" style="color:#7b56e0;">4</div>
+      <div class="badge" style="background:#7b56e0;color:#fff;font-size:0.8em;padding:5px 18px;">Autenticació federada</div>
+      <h1 style="color:#b89aff;">Keycloak OAuth2/OIDC</h1>
+      <p class="muted small" style="text-align:center;">
+        Realm "lab" · Client "sftpgo" · External auth hook · JWT
+      </p>
+      <div style="margin-top:14px;">
+        <span class="badge" style="background:#7b56e0;color:#fff;">IdP centralitzat</span>
+        <span class="badge badge-blue">JWT tokens</span>
+        <span class="badge badge-green">TLS 1.2+ mantingut</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div class="flow-node">FileZilla</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">FTPES :21</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node green">SFTPGo</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node" style="border-color:#7b56e0;color:#b89aff;">auth hook</div>
+      <div class="flow-arrow">──</div>
+      <div class="flow-node" style="border-color:#7b56e0;color:#b89aff;">Keycloak :8080</div>
+    </div>
+  </section>
+
+  <!-- 4.1 Configuració Keycloak -->
+  <section>
+    <h2>Etapa 4 — Keycloak: Realm, Client i Usuaris</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Estructura Keycloak</h3>
+        <div class="card" style="border-color:#7b56e0; margin-bottom:8px;">
+          <strong style="color:#b89aff;">Realm: lab</strong><br>
+          <span class="muted small">Espai d'identitat aïllat del realm <code>master</code>.<br>
+          Admin: <code>http://localhost:8180/admin</code></span>
+        </div>
+        <div class="card" style="border-color:#7b56e0; margin-bottom:8px;">
+          <strong style="color:#b89aff;">Client: sftpgo</strong><br>
+          <span class="muted small">Confidential · Direct Access Grants actiu<br>
+          Secret: <code>sftpgo-client-secret</code></span>
+        </div>
+        <div class="card" style="border-color:#7b56e0;">
+          <strong style="color:#b89aff;">Usuari: ftpuser</strong><br>
+          <span class="muted small">Creat al realm lab.<br>
+          Password: <code>ftppassword</code> (no temporal)</span>
+        </div>
+      </div>
+      <div>
+        <h3>topologies/etapa4.yml — node keycloak</h3>
+        <div class="config-panel" style="border-color:#7b56e0;">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-yaml" style="font-size:0.88em;">keycloak:
+  kind: linux
+<span class="hl">  image: quay.io/keycloak/keycloak:latest</span>
+  exec:
+    - bash -c "ip addr add 10.50.0.40/24
+        dev eth1 && ip link set eth1 up
+<span class="hl">        && /opt/keycloak/bin/kc.sh start-dev</span>
+<span class="hl">        --http-port=8080</span>
+<span class="hl">        --hostname=keycloak.test</span>
+        --hostname-strict=false"
+  ports:
+<span class="hl">    - "8180:8080"  # Admin console</span>
+  env:
+<span class="hl">    KEYCLOAK_ADMIN: admin</span>
+<span class="hl">    KEYCLOAK_ADMIN_PASSWORD: admin</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4.2 sftpgo.json + auth hook -->
+  <section>
+    <h2>Etapa 4 — External Auth Hook i sftpgo.json</h2>
+    <div class="grid-2">
+      <div>
+        <h3>sftpgo.json — Etapa 4</h3>
+        <div class="config-panel" style="border-color:#7b56e0;">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-json" style="font-size:0.9em;">"data_provider": {
+  "driver": "sqlite",
+  "name": "/var/lib/sftpgo/sftpgo.db",
+<span class="hl">  "external_auth_hook":</span>
+<span class="hl">    "/usr/local/bin/auth-keycloak.sh",</span>
+<span class="hl">  "external_auth_scope": 1,</span>
+  ...
+}</code></pre>
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          <code>external_auth_scope: 1</code> = activat per a autenticació de contrasenya. SFTPGo crida el hook amb les credencials via <strong>stdin (JSON)</strong>.
+        </div>
+      </div>
+      <div>
+        <h3>auth-keycloak.sh — fragments clau</h3>
+        <div class="config-panel" style="border-color:#7b56e0;">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-bash" style="font-size:0.82em;">#!/bin/bash
+# SFTPGo passa credencials per stdin
+read -r INPUT
+USERNAME=$(echo "$INPUT" | python3 -c \
+  "import sys,json; d=json.load(sys.stdin);
+   print(d.get('username',''))")
+PASSWORD=$(echo "$INPUT" | python3 -c \
+  "import sys,json; d=json.load(sys.stdin);
+   print(d.get('password',''))")
+
+# Verificar contra Keycloak (ROPC flow)
+<span class="hl">RESPONSE=$(curl -s -X POST \</span>
+<span class="hl">  "http://keycloak.test:8080/realms/lab\</span>
+<span class="hl">   /protocol/openid-connect/token" \</span>
+<span class="hl">  -d "client_id=sftpgo" \</span>
+<span class="hl">  -d "client_secret=sftpgo-client-secret" \</span>
+<span class="hl">  -d "grant_type=password" \</span>
+<span class="hl">  -d "username=$USERNAME" \</span>
+<span class="hl">  -d "password=$PASSWORD")</span>
+
+# Si hi ha access_token → usuari vàlid
+if [ -n "$ACCESS_TOKEN" ]; then
+  echo '{"username":"...","permissions":{"/":["*"]},"status":1}'
+else
+  echo '{"username":""}'
+fi</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4.3 JWT + Verificació -->
+  <section>
+    <h2>Etapa 4 — Flux JWT i Verificació</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Obtenir i decodificar un token JWT</h3>
+        <pre><code class="language-bash"># Obtenir token directament de Keycloak
+TOKEN=$(curl -s -X POST \
+  "http://keycloak.test:8080/realms/lab\
+/protocol/openid-connect/token" \
+  -d "client_id=sftpgo" \
+  -d "client_secret=sftpgo-client-secret" \
+  -d "grant_type=password" \
+  -d "username=ftpuser" \
+  -d "password=ftppassword" \
+  | python3 -c "import sys,json;
+    print(json.load(sys.stdin)['access_token'])")
+
+# Decodificar payload (base64 URL)
+echo $TOKEN | cut -d. -f2 \
+  | base64 -d 2>/dev/null \
+  | python3 -m json.tool</code></pre>
+        <div class="box box-blue" style="margin-top:8px;">
+          Observa: <code>sub</code> · <code>iss</code> · <code>exp</code> · <code>preferred_username</code>
+        </div>
+      </div>
+      <div>
+        <h3>Taula comparativa</h3>
+        <table style="margin-bottom:10px;">
+          <tr><th>Aspecte</th><th>Etapa 3</th><th>Etapa 4</th></tr>
+          <tr><td>Autenticació</td><td>BD SFTPGo</td><td><strong style="color:#b89aff;">Keycloak OIDC</strong></td></tr>
+          <tr><td>Usuaris</td><td>SFTPGo admin</td><td><strong style="color:#b89aff;">Realm "lab"</strong></td></tr>
+          <tr><td>Token</td><td>Cap</td><td><strong style="color:#b89aff;">JWT (RS256)</strong></td></tr>
+          <tr><td>SSO</td><td>No</td><td><strong style="color:#b89aff;">Sí</strong></td></tr>
+          <tr><td>Nodes actius</td><td>6</td><td><strong style="color:#b89aff;">7</strong></td></tr>
+        </table>
+        <div class="box box-warn">
+          El flux <strong>ROPC</strong> (Resource Owner Password Credentials) s'usa per simplicitat. En producció caldria <strong>Authorization Code + PKCE</strong>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4.4 Preguntes reflexió -->
+  <section>
+    <h2>Etapa 4 — Preguntes de Reflexió</h2>
+    <ol style="font-size:0.65em; columns:2; column-gap:24px;">
+      <li>Quina diferència hi ha entre <strong>OAuth2</strong> i <strong>OIDC</strong>? Quin afegeix OIDC per sobre d'OAuth2?</li>
+      <li>Per quina raó el flux <strong>ROPC</strong> no és recomanable en producció? Quins fluxos alternatius hi ha?</li>
+      <li>Un JWT té capçalera, payload i signatura. Quins <em>claims</em> del payload són rellevants per a SFTPGo?</li>
+      <li>Si Keycloak és temporalment inaccesible, els usuaris FTP podran autenticar-se? Com dissenyaries un fallback?</li>
+      <li>Quina diferència hi ha entre un <strong>realm</strong> i un <strong>client</strong> a Keycloak? Per quina raó s'aïlla del realm <code>master</code>?</li>
+      <li>L'hook d'autenticació és un script Bash. Quins problemes de seguretat pot tenir? (secrets, injecció, race conditions)</li>
+      <li>Compara gestió d'usuaris centralitzada (Keycloak) vs. distribuïda (SFTPGo local). Avantatges en seguretat i auditoria.</li>
+      <li>Keycloak pot expirar tokens (<code>exp</code>). Com afecta l'expiració del token a una sessió FTP ja establerta?</li>
+      <li>Si afegissis un segon SFTPGo per HA, com gestionaria Keycloak les sessions entre les dues instàncies?</li>
+      <li>OAuth2/OIDC s'usa habitualment per a web. Per quina raó és poc comú per a FTP? Quines alternatives (LDAP, RADIUS) s'usen normalment?</li>
+    </ol>
+  </section>
+
+</section><!-- /columna 4 -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 5 — ETAPA 5: CLIENTS TEXTUALS (lftp + rclone)                ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 5.0 Portada Etapa 5 -->
+  <section>
+    <div class="stage-header">
+      <div class="stage-num">5</div>
+      <div class="badge badge-blue" style="font-size:0.8em; padding:5px 18px;">Clients textuals</div>
+      <h1>lftp + rclone + Online</h1>
+      <p class="muted small" style="text-align:center;">
+        Clients FTP de línia de comandes · Automatització · Clients web segurs
+      </p>
+      <div style="margin-top:14px;">
+        <span class="badge badge-green">lftp CLI</span>
+        <span class="badge badge-blue">rclone multi-backend</span>
+        <span class="badge badge-warn">Filestash web</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div class="flow-node">client-lftp<br><span class="muted" style="font-size:0.85em;">10.50.0.11</span></div>
+      <div class="flow-arrow">──FTPES──</div>
+      <div class="flow-node green">SFTPGo :21<br><span class="muted" style="font-size:0.85em;">10.50.0.20</span></div>
+      <div class="flow-arrow">◄──</div>
+      <div class="flow-node">client-rclone<br><span class="muted" style="font-size:0.85em;">10.50.0.12</span></div>
+    </div>
+    <div class="nav-hint">↓ continua · → etapa 6</div>
+  </section>
+
+  <!-- 5.1 Arquitectura i nodes nous -->
+  <section>
+    <h2>Etapa 5 — Arquitectura</h2>
+    <div class="grid-2">
+      <div>
+        <div class="topo" style="font-size:0.48em;">
+<pre style="background:transparent;border:none;box-shadow:none;font-size:1em;padding:0;margin:0;">
+  <span class="t-green">[client]</span>        10.50.0.10  FileZilla GUI
+  <span class="t-green">[client-lftp]</span>   10.50.0.11  lftp CLI      <span class="t-blue">← NOU</span>
+  <span class="t-green">[client-rclone]</span> 10.50.0.12  rclone CLI    <span class="t-blue">← NOU</span>
+  <span class="t-green">[server]</span>        10.50.0.20  SFTPGo FTPES
+  <span class="t-muted">[coredns]</span>       10.50.0.53  DNS
+  <span class="t-muted">[router]</span>        10.50.0.1   FRR GW
+</pre>
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          Tots tres clients usen el mateix servidor SFTPGo.<br>
+          El protocol és <strong>FTPES (TLS explícit, port 21)</strong>.
+        </div>
+      </div>
+      <div>
+        <h3>Nodes nous (topologies/etapa5.yml)</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-yaml" style="font-size:0.85em;">client-lftp:
+  kind: linux
+  image: sftpgo-lab/client-lftp:latest
+  exec:
+    - bash /init-client-lftp.sh
+  env:
+    <span class="hl">NODE_IP: 10.50.0.11</span>
+
+client-rclone:
+  kind: linux
+  image: sftpgo-lab/client-rclone:latest
+  exec:
+    - bash /init-client-rclone.sh
+  env:
+    <span class="hl">NODE_IP: 10.50.0.12</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.2 lftp: configuració i ús -->
+  <section>
+    <h2>Client lftp — Configuració i Ús</h2>
+    <div class="grid-2">
+      <div>
+        <h3>~/.lftp/rc — Config TLS</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-bash" style="font-size:0.85em;">set ftp:ssl-allow yes
+<span class="hl">set ftp:ssl-force yes          # forçar FTPES</span>
+<span class="hl">set ftp:ssl-protect-data yes   # xifrar dades</span>
+set ftp:ssl-protect-list yes
+<span class="hl">set ssl:ca-file /home/ftpuser/certs/rootCA.pem</span>
+set ftp:passive-mode yes
+set net:timeout 30</code></pre>
+        </div>
+        <div class="box box-green" style="margin-top:8px;">
+          <strong>Clau:</strong> <code>ssl-force yes</code> → el client enviarà <code>AUTH TLS</code> i refusarà si el servidor no el suporta.
+        </div>
+      </div>
+      <div>
+        <h3>Ús bàsic i scripts</h3>
+        <pre><code class="language-bash"># Interactiu
+lftp -u ftpuser,ftppassword demoftp.test
+
+# No-interactiu (ideal per a scripts)
+lftp -u ftpuser,ftppass demoftp.test \
+  -e "ls; bye"
+
+# Pujar fitxer
+lftp -u ftpuser,ftppass demoftp.test \
+  -e "put /tmp/f.txt -o web01/f.txt; bye"
+
+# Mirror remot → local
+lftp -u ftpuser,ftppass demoftp.test \
+  -e "mirror / /tmp/mirall/; bye"
+
+# Mirror local → remot (invers)
+lftp -u ftpuser,ftppass demoftp.test \
+  -e "mirror -R /tmp/backup/ /backup/; bye"
+
+# Demo del lab
+bash /home/ftpuser/demo-lftp.sh</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.3 rclone: configuració i ús -->
+  <section>
+    <h2>Client rclone — Configuració i Ús</h2>
+    <div class="grid-2">
+      <div>
+        <h3>~/.config/rclone/rclone.conf</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-ini" style="font-size:0.85em;">[demoftp]
+type = ftp
+host = demoftp.test
+port = 21
+user = ftpuser
+pass = &lt;ofuscat per rclone&gt;
+<span class="hl">tls = false         # FTPS implícit: NO</span>
+<span class="hl">explicit_tls = true # FTPES explícit: SÍ</span>
+no_check_certificate = false
+concurrency = 4</code></pre>
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          rclone suporta <strong>FTP, SFTP, S3, Google Drive, OneDrive...</strong> amb el mateix interfície CLI.
+        </div>
+      </div>
+      <div>
+        <h3>Ús bàsic rclone</h3>
+        <pre><code class="language-bash"># Llistar remot
+rclone ls demoftp:
+
+# Copiar local → remot
+rclone copy /tmp/fitxer.txt demoftp:proves/
+
+# Copiar remot → local
+rclone copy demoftp:proves/ /tmp/descàrrega/
+
+# Sincronitzar (esborra a destinació)
+rclone sync /tmp/web/ demoftp:web01/
+
+# Pujar i verificar integritat (checksum)
+rclone copy --checksum /tmp/f.txt demoftp:
+
+# Demo del lab
+bash /home/ftpuser/demo-rclone.sh</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.4 Clients online segurs -->
+  <section>
+    <h2>Clients FTP Online Segurs</h2>
+    <div class="grid-2">
+      <div>
+        <div class="card card-green" style="margin-bottom:12px;">
+          <strong class="green">Filestash</strong>
+          <span class="badge badge-green" style="margin-left:6px;">Recomanat</span><br>
+          <span class="muted small">https://www.filestash.app</span><br><br>
+          <ul style="font-size:0.9em; margin-left:1em;">
+            <li>Self-hosted (Docker) o servei en línia</li>
+            <li>Suporta FTP, FTPES, FTPS, SFTP, S3</li>
+            <li>Credencials <strong>no</strong> emmagatzemades al servidor</li>
+            <li>Interfície web moderna</li>
+          </ul>
+        </div>
+        <div class="card card-warn">
+          <strong style="color:var(--warning);">net2ftp</strong><br>
+          <span class="muted small">https://www.net2ftp.com</span><br><br>
+          <ul style="font-size:0.9em; margin-left:1em;">
+            <li>Sense instal·lació</li>
+            <li>Credencials passen pels servidors de net2ftp</li>
+            <li>Només per a labs / proves</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <h3>Connexió a Filestash</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-yaml" style="font-size:0.85em;"><span class="hl">Protocol:  FTP</span>
+Host:      demoftp.test
+Port:      21
+<span class="hl">TLS:       Explícit (FTPES)</span>
+Usuari:    ftpuser
+Contrasenya: ftppassword</code></pre>
+        </div>
+        <div class="box box-danger" style="margin-top:8px;">
+          <strong>Seguretat net2ftp:</strong> Les credencials passen per servidors de tercers. <strong>Mai usar en producció</strong> amb credencials reals.
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          Filestash self-hosted: el tràfic és directe des del servidor Filestash al teu SFTPGo.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.5 Comparativa de clients -->
+  <section>
+    <h2>Comparativa de Clients FTP</h2>
+    <table>
+      <tr>
+        <th>Client</th>
+        <th>Tipus</th>
+        <th>TLS/FTPES</th>
+        <th>Automatització</th>
+        <th>Backends</th>
+        <th>Cas d'ús</th>
+      </tr>
+      <tr>
+        <td><strong>FileZilla</strong></td>
+        <td>GUI</td>
+        <td><span class="badge badge-green">Sí</span></td>
+        <td><span class="badge badge-danger">No</span></td>
+        <td>FTP/FTPS/SFTP</td>
+        <td>Ús diari interactiu</td>
+      </tr>
+      <tr>
+        <td><strong>lftp</strong></td>
+        <td>CLI</td>
+        <td><span class="badge badge-green">Sí</span></td>
+        <td><span class="badge badge-green">Sí (scripts)</span></td>
+        <td>FTP/FTPS/HTTP</td>
+        <td>Scripts, cron, servidors</td>
+      </tr>
+      <tr>
+        <td><strong>rclone</strong></td>
+        <td>CLI</td>
+        <td><span class="badge badge-green">Sí</span></td>
+        <td><span class="badge badge-green">Sí</span></td>
+        <td>FTP/S3/SFTP/GDrive/...</td>
+        <td>Backup, cloud, multi-backend</td>
+      </tr>
+      <tr>
+        <td><strong>Filestash</strong></td>
+        <td>Web</td>
+        <td><span class="badge badge-green">Sí</span></td>
+        <td><span class="badge badge-danger">No</span></td>
+        <td>FTP/SFTP/S3</td>
+        <td>Accés web sense instal·lació</td>
+      </tr>
+      <tr>
+        <td><strong>net2ftp</strong></td>
+        <td>Web</td>
+        <td>Parcial</td>
+        <td><span class="badge badge-danger">No</span></td>
+        <td>FTP</td>
+        <td>Labs / proves</td>
+      </tr>
+    </table>
+    <div class="box box-blue" style="margin-top:10px; font-size:0.62em;">
+      <strong>Consell:</strong> Per a backups automatitzats, usar <code>rclone sync</code> en un cron job és la solució més robusta. lftp és preferit quan el servidor destí és exclusivament FTP.
+    </div>
+  </section>
+
+  <!-- 5.6 Preguntes reflexió -->
+  <section>
+    <h2>Etapa 5 — Preguntes de Reflexió</h2>
+    <ol style="font-size:0.63em; columns:2; column-gap:24px;">
+      <li>Quina diferència fonamental hi ha entre mode <strong>interactiu</strong> i <strong>no-interactiu</strong> d'lftp? Posa un exemple de cada un.</li>
+      <li>Quan lftp usa <code>ssl-force yes</code>, en quin moment del protocol s'envia la comanda <code>AUTH TLS</code>?</li>
+      <li>Per quina raó rclone <strong>ofusca</strong> la contrasenya al fitxer de configuració? Garanteix seguretat real?</li>
+      <li>Compara <code>mirror</code> d'lftp amb <code>sync</code> de rclone. Quines opcions ofereix cadascun per evitar esborrats accidentals?</li>
+      <li>Filestash actua com a <strong>proxy</strong> entre el navegador i el servidor FTP. On s'estableix exactament la connexió TLS?</li>
+      <li>Quines implicacions de seguretat té usar un client FTP online de tercers (net2ftp) amb credencials reals? Descriu el flux.</li>
+      <li>lftp pot fer transferències en paral·lel (<code>pget -n 4</code>). Com afecta al rang de ports passius de SFTPGo (50000–50100)?</li>
+      <li>Quins avantatges té rclone per a un administrador que gestiona múltiples backends (FTP, S3, SFTP) simultàniament?</li>
+      <li>Quin dels dos clients (lftp o rclone) té millor suport per a reprendre transferències interrompudes (<code>resume</code>)?</li>
+      <li>Per a backups FTP nocturns automatitzats, quin client recomanaries i per quina raó? Escriu la comanda cron.</li>
+    </ol>
+  </section>
+
+</section><!-- /columna 5 (Etapa 5) -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 6 — ETAPA 6: PROXY INVERS + WEBS DES DEL FTP                 ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 6.0 Portada Etapa 6 -->
+  <section>
+    <div class="stage-header">
+      <div class="stage-num">6</div>
+      <div class="badge badge-green" style="font-size:0.8em; padding:5px 18px;">Proxy invers</div>
+      <h1>nginx + Angie + Webs des del FTP</h1>
+      <p class="muted small" style="text-align:center;">
+        Virtual hosting per nom · nginx proxy invers · Angie (fork nginx) · Contingut FTP
+      </p>
+      <div style="margin-top:14px;">
+        <span class="badge badge-green">nginx proxy</span>
+        <span class="badge badge-blue">nginx web01/web02</span>
+        <span class="badge badge-warn">Angie web03</span>
+        <span class="badge badge-muted">FTP → Web</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:14px; font-size:0.6em;">
+      <div class="flow-node">Navegador</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node green">nginx proxy<br>10.50.0.60</div>
+      <div class="flow-arrow">→ web01.demoftp.test</div>
+      <div class="flow-node">nginx<br>10.50.0.61</div>
+    </div>
+    <div class="flow" style="font-size:0.6em; margin-top:4px;">
+      <div class="flow-node" style="visibility:hidden;">Navegador</div>
+      <div class="flow-arrow" style="color:transparent;">→</div>
+      <div class="flow-node" style="visibility:hidden;">proxy</div>
+      <div class="flow-arrow">→ web03.demoftp.test</div>
+      <div class="flow-node" style="border-color:var(--warning);color:var(--warning);">Angie<br>10.50.0.63</div>
+    </div>
+    <div class="nav-hint">↓ continua · → resum</div>
+  </section>
+
+  <!-- 6.1 Arquitectura completa -->
+  <section>
+    <h2>Etapa 6 — Arquitectura</h2>
+    <div class="grid-2">
+      <div>
+        <div class="topo" style="font-size:0.46em;">
+<pre style="background:transparent;border:none;box-shadow:none;font-size:1em;padding:0;margin:0;">
+  HOST: http://localhost:8091 → proxy
+
+  <span class="t-muted">Xarxa LAN 10.50.0.0/24</span>
+
+  [<span class="t-green">server</span>]   10.50.0.20  SFTPGo (font FTP)
+    └─ /web01/  → web01.demoftp.test
+    └─ /web02/  → web02.demoftp.test
+    └─ /web03/  → web03.demoftp.test
+
+  [<span class="t-blue">proxy</span>]    10.50.0.60  nginx proxy invers
+    ├─ web01.demoftp.test → 10.50.0.61
+    ├─ web02.demoftp.test → 10.50.0.62
+    └─ web03.demoftp.test → 10.50.0.63
+
+  [<span class="t-green">web01</span>]    10.50.0.61  nginx  (/var/www/web01)
+  [<span class="t-green">web02</span>]    10.50.0.62  nginx  (/var/www/web02)
+  [<span class="t-blue">web03</span>]    10.50.0.63  Angie  (/var/www/web03)
+</pre>
+        </div>
+      </div>
+      <div>
+        <h3>Flux del contingut</h3>
+        <div class="box box-green">
+          <span class="step">1</span> Usuari puja fitxers via FTP a <code>/web01/</code><br>
+          <span class="step">2</span> Script sincronitza: contingut FTP → <code>/var/www/web01/</code><br>
+          <span class="step">3</span> Navegador accedeix a <code>web01.demoftp.test</code><br>
+          <span class="step">4</span> Proxy enruta al <code>web01</code> intern (nginx)<br>
+          <span class="step">5</span> nginx serveix el HTML de <code>/var/www/web01/</code>
+        </div>
+        <div class="box box-blue" style="margin-top:8px;">
+          El proxy decideix el destí per la capçalera <code>Host:</code> de la petició HTTP.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6.2 Configuració proxy invers nginx -->
+  <section>
+    <h2>Proxy Invers — Configuració nginx</h2>
+    <div class="config-panel">
+      <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-nginx" style="font-size:0.8em;"># /etc/nginx/sites-available/proxy-lab
+
+server {
+    listen 80;
+    <span class="hl">server_name web01.demoftp.test;</span>
+
+    location / {
+        <span class="hl">proxy_pass         http://10.50.0.61:80;</span>
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+    add_header X-Proxy "nginx-proxy" always;
+}
+
+server {
+    listen 80;
+    <span class="hl">server_name web03.demoftp.test;</span>
+
+    location / {
+        <span class="hl">proxy_pass         http://10.50.0.63:80;  # → Angie</span>
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+    }
+}</code></pre>
+    </div>
+    <div class="box box-blue" style="margin-top:8px; font-size:0.62em;">
+      Tots tres <code>server</code> blocks escolten al port <strong>80</strong> del proxy. La directiva <code>server_name</code> és l'únic element que els diferencia.
+    </div>
+  </section>
+
+  <!-- 6.3 Angie — servidor web03 -->
+  <section>
+    <h2>Angie — Servidor Web web03</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Què és Angie?</h3>
+        <table style="font-size:0.65em;">
+          <tr><th>Característica</th><th>nginx</th><th>Angie</th></tr>
+          <tr><td>Origen</td><td>Nginx, Inc.</td><td>Wgnet (fork 2022)</td></tr>
+          <tr><td>Compatibilitat</td><td>—</td><td>100% config nginx</td></tr>
+          <tr><td>Config path</td><td>/etc/nginx/</td><td>/etc/angie/</td></tr>
+          <tr><td>Comanda</td><td><code>nginx</code></td><td><code>angie</code></td></tr>
+          <tr><td>Llicència</td><td>BSD 2-Clause</td><td>BSD 2-Clause</td></tr>
+        </table>
+        <div class="box box-blue" style="margin-top:8px;">
+          Angie és una alternativa creixent en entorns on nginx comercial (nginx Plus) és massa car.
+        </div>
+      </div>
+      <div>
+        <h3>Config Angie — web03</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-nginx" style="font-size:0.82em;"># /etc/angie/http.d/web03.conf
+
+server {
+    listen 80;
+    <span class="hl">server_name web03.demoftp.test;</span>
+
+    root /var/www/web03;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    <span class="hl">add_header X-Served-By "angie-web03" always;</span>
+    add_header X-Powered-By "Angie" always;
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6.4 Sincronització FTP → Web i verificació -->
+  <section>
+    <h2>Sincronització FTP → Web i Verificació</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Actualitzar contingut via FTP</h3>
+        <pre><code class="language-bash"># 1. Pujar contingut nou via curl (FTP)
+docker exec clab-sftpgo-lab-client \
+  curl -s -T /tmp/index.html \
+  ftp://ftpuser:ftppassword@demoftp.test/web01/index.html
+
+# 2. Sincronitzar FTP → web01 (al contenidor web)
+docker exec clab-sftpgo-lab-web01 \
+  curl -s -o /var/www/web01/index.html \
+  ftp://ftpuser:ftppassword@demoftp.test/web01/index.html
+
+# 3. Verificar resposta HTTP
+curl -H "Host: web01.demoftp.test" \
+     http://localhost:8091/</code></pre>
+      </div>
+      <div>
+        <h3>Verificació de capçaleres</h3>
+        <pre><code class="language-bash"># Verificar capçaleres de resposta
+curl -I -H "Host: web01.demoftp.test" \
+     http://localhost:8091/
+# X-Proxy: nginx-proxy
+# X-Served-By: nginx-web01
+
+curl -I -H "Host: web03.demoftp.test" \
+     http://localhost:8091/
+# X-Proxy: nginx-proxy
+# X-Served-By: angie-web03
+# X-Powered-By: Angie
+
+# Testejar des del client intern
+docker exec clab-sftpgo-lab-proxy \
+  curl -H "Host: web02.demoftp.test" \
+  http://127.0.0.1/</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6.5 Preguntes reflexió -->
+  <section>
+    <h2>Etapa 6 — Preguntes de Reflexió</h2>
+    <ol style="font-size:0.63em; columns:2; column-gap:24px;">
+      <li>Quin és el rol exacte del proxy invers en aquesta arquitectura? Per quina raó no servim el contingut directament des de cada servidor web?</li>
+      <li>Explica el mecanisme de <strong>virtual hosting per nom de host</strong>. Quin camp de la petició HTTP diferencia web01, web02 i web03?</li>
+      <li>Quina capçalera HTTP envia el proxy als servidors interns per preservar la IP original del client? Per quina raó és important per als logs?</li>
+      <li>Descriu el flux complet des que un usuari puja un fitxer via FileZilla fins que apareix al web. Quants passos manuals cal fer? Com s'automatitzaria?</li>
+      <li>Angie és compatible amb la configuració de nginx però usa <code>/etc/angie/</code>. Quin avantatge i quin inconvenient té mantenir rutes de config diferenciades?</li>
+      <li>En producció, el proxy invers normalment termina TLS (HTTPS). Modifica la config del proxy per afegir HTTPS amb els certificats mkcert del lab.</li>
+      <li>El contingut web es sincronitza manualment via FTP (<code>curl</code>, <code>lftp mirror</code>…). Quins mecanismes existeixen per automatitzar-ho (cron, inotify, webhooks SFTPGo)?</li>
+      <li>Compara les capçaleres <code>X-Served-By</code> i <code>X-Proxy</code>. En quin node s'afegeix cadascuna? Quin valor tenen per al diagnosi?</li>
+      <li>Quina diferència hi ha entre <code>proxy_pass http://10.50.0.61:80</code> i <code>proxy_pass http://web01.demoftp.test:80</code>? Quin depèn del DNS?</li>
+      <li>En una arquitectura de producció, s'usaria un proxy invers com a punt únic d'entrada per múltiples webs. Descriu-ne una amb nginx + Let's Encrypt.</li>
+    </ol>
+  </section>
+
+</section><!-- /columna 6 (Etapa 6) -->
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════╗
+     ║  COLUMNA 7 — RESUM FINAL                                              ║
+     ╚══════════════════════════════════════════════════════════════════════════╝ -->
+<section>
+
+  <!-- 7.0 Resum global -->
+  <section>
+    <h2>Resum del Laboratori — Les 6 Etapes</h2>
+    <table>
+      <tr>
+        <th>Aspecte</th>
+        <th><span class="badge badge-danger">Etapa 1</span></th>
+        <th><span class="badge badge-green">Etapa 2</span></th>
+        <th><span class="badge badge-warn">Etapa 3</span></th>
+        <th><span class="badge" style="background:#7b56e0;color:#fff;">Etapa 4</span></th>
+        <th><span class="badge badge-blue">Etapa 5</span></th>
+        <th><span class="badge badge-green">Etapa 6</span></th>
+      </tr>
+      <tr>
+        <td>Protocol FTP</td>
+        <td>:21 text pla</td>
+        <td>FTPES :21<br>FTPS :990</td>
+        <td>FTPES :21<br>FTPS :990</td>
+        <td>FTPES :21<br>FTPS :990</td>
+        <td>FTPES :21</td>
+        <td>FTPES :21</td>
+      </tr>
+      <tr>
+        <td>Xifrat</td>
+        <td><span class="badge badge-danger">Cap</span></td>
+        <td><span class="badge badge-green">TLS 1.2+</span></td>
+        <td><span class="badge badge-green">TLS 1.2+</span></td>
+        <td><span class="badge badge-green">TLS 1.2+</span></td>
+        <td><span class="badge badge-green">TLS 1.2+</span></td>
+        <td><span class="badge badge-green">TLS 1.2+</span></td>
+      </tr>
+      <tr>
+        <td>Autenticació</td>
+        <td>Local SFTPGo</td>
+        <td>Local SFTPGo</td>
+        <td>Local SFTPGo</td>
+        <td><span class="badge" style="background:#7b56e0;color:#fff;">Keycloak OIDC</span></td>
+        <td>Local SFTPGo</td>
+        <td>Local SFTPGo</td>
+      </tr>
+      <tr>
+        <td>Emmagatzematge</td>
+        <td>Filesystem</td>
+        <td>Filesystem</td>
+        <td><span class="badge badge-warn">MinIO S3</span></td>
+        <td><span class="badge badge-warn">MinIO S3</span></td>
+        <td>Filesystem</td>
+        <td>Filesystem</td>
+      </tr>
+      <tr>
+        <td>Client FTP</td>
+        <td>FileZilla</td>
+        <td>FileZilla</td>
+        <td>FileZilla</td>
+        <td>FileZilla</td>
+        <td><span class="badge badge-blue">lftp · rclone</span></td>
+        <td>curl/lftp (sync web)</td>
+      </tr>
+      <tr>
+        <td>Nodes actius</td>
+        <td>5</td><td>5</td><td>6</td><td>7</td><td>7</td><td>9</td>
+      </tr>
+      <tr>
+        <td>Script gestió</td>
+        <td colspan="2"><code>./lab.sh certs</code></td>
+        <td><code>./lab.sh setup3</code></td>
+        <td><code>./lab.sh setup4</code></td>
+        <td><code>./lab.sh setup5</code></td>
+        <td><code>./lab.sh setup6</code></td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- 7.1 DNS i resolució de noms -->
+  <section>
+    <h2>Resolució de Noms — CoreDNS</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Zona db.test</h3>
+        <div class="config-panel">
+          <pre style="border:none;box-shadow:none;border-radius:0;"><code class="language-text" style="font-size:0.85em;">$ORIGIN test.
+$TTL 300
+
+@       IN SOA ns1.test. admin.test. (2026022002 ...)
+@       IN NS  ns1.test.
+
+ns1      IN A  10.50.0.53
+router   IN A  10.50.0.1
+client   IN A  10.50.0.10
+<span class="hl">server   IN A  10.50.0.20</span>
+<span class="hl">demoftp  IN A  10.50.0.20</span>
+rustfs   IN A  10.50.0.30   <span style="color:var(--text-muted);">; Etapa 3</span>
+keycloak IN A  10.50.0.40   <span style="color:var(--text-muted);">; Etapa 4</span>
+<span class="hl">web01    IN A  10.50.0.61</span>   <span style="color:var(--text-muted);">; Etapa 6</span>
+<span class="hl">web02    IN A  10.50.0.62</span>   <span style="color:var(--text-muted);">; Etapa 6</span>
+<span class="hl">web03    IN A  10.50.0.63</span>   <span style="color:var(--text-muted);">; Etapa 6</span></code></pre>
+        </div>
+      </div>
+      <div>
+        <h3>Verificació DNS</h3>
+        <pre><code class="language-bash"># Resolució directa
+dig demoftp.test @10.50.0.53
+nslookup demoftp.test
+
+# Resolució inversa
+dig -x 10.50.0.20 @10.50.0.53
+
+# Ping per nom
+ping -c 3 demoftp.test
+ping -c 3 web01.demoftp.test
+ping -c 3 web03.demoftp.test</code></pre>
+        <div class="box box-blue" style="margin-top:8px;">
+          <code>/etc/resolv.conf</code> de cada contenidor apunta a <code>10.50.0.53</code> (CoreDNS), configurat automàticament pels scripts d'init.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7.2 Comandes de referència ràpida -->
+  <section>
+    <h2>Referència Ràpida de Comandes</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Gestió del lab</h3>
+        <pre><code class="language-bash">./lab.sh check    # prerequisits
+./lab.sh build    # construir imatges
+./lab.sh deploy N  # desplegar etapa N
+./lab.sh status   # estat nodes
+./lab.sh destroy  # destruir
+
+# Etapa 2
+./lab.sh certs    # generar certs mkcert
+# Etapa 3
+./lab.sh setup3   # configurar MinIO S3
+# Etapa 4
+./lab.sh setup4   # configurar Keycloak OIDC
+# Etapa 5
+./lab.sh setup5   # configurar lftp + rclone
+# Etapa 6
+./lab.sh setup6   # configurar proxy + webs</code></pre>
+      </div>
+      <div>
+        <h3>Verificació de connectivitat</h3>
+        <pre><code class="language-bash"># DNS
+docker exec clab-sftpgo-lab-client \
+  dig demoftp.test @10.50.0.53
+
+# FTP (Etapa 1)
+docker exec clab-sftpgo-lab-client \
+  curl -v ftp://ftpuser:ftppassword@demoftp.test/
+
+# TLS (Etapa 2)
+docker exec clab-sftpgo-lab-client \
+  openssl s_client \
+  -connect demoftp.test:21 -starttls ftp \
+  -CAfile /home/ftpuser/certs/rootCA.pem
+
+# Webs (Etapa 6)
+curl -H "Host: web01.demoftp.test" \
+  http://localhost:8091/
+curl -H "Host: web03.demoftp.test" \
+  http://localhost:8091/</code></pre>
+      </div>
+    </div>
+  </section>
+
+</section><!-- /columna 7 (resum) -->
+
+</div><!-- /slides -->
+</div><!-- /reveal -->
+
+<!-- reveal.js scripts (locals) -->
+<script src="reveal.js/dist/reveal.js"></script>
+<script src="reveal.js/plugin/notes/notes.js"></script>
+<script src="reveal.js/plugin/highlight/highlight.js"></script>
+<script src="reveal.js/plugin/zoom/zoom.js"></script>
+
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    transitionSpeed: 'fast',
+    controls: true,
+    controlsTutorial: true,
+    progress: true,
+    center: false,
+    width: 1280,
+    height: 720,
+    margin: 0.03,
+    // Navigation: horizontal = etapes, vertical = diapositives dins l'etapa
+    navigationMode: 'default',
+    plugins: [RevealHighlight, RevealNotes, RevealZoom],
+    highlight: {
+      highlightOnLoad: true,
+      escapeHTML: false,
+    }
+  });
+</script>
+</body>
+</html>

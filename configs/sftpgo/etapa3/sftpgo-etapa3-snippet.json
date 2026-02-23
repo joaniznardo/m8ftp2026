@@ -1,0 +1,43 @@
+{
+  "_comentari": "Etapa 3 - Configuració SFTPGo amb RustFS (S3-compatible) com a virtual filesystem",
+  "_nota": "Substitueix el filesystem local per un bucket S3 en RustFS",
+  "ftpd": {
+    "bindings": [
+      {
+        "port": 21,
+        "tls_mode": 1,
+        "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+        "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"
+      },
+      {
+        "port": 990,
+        "tls_mode": 2,
+        "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+        "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"
+      }
+    ],
+    "passive_port_range": {
+      "start": 50000,
+      "end": 50100
+    }
+  },
+  "_virtual_filesystem_exemple": {
+    "_per_als_usuaris_amb_S3": "Configureu el filesystem a la secció de l'usuari via API o web admin",
+    "filesystem": {
+      "provider": 1,
+      "s3config": {
+        "bucket": "sftpgo-data",
+        "region": "us-east-1",
+        "access_key": "rustfs-access-key",
+        "access_secret": "rustfs-secret-key",
+        "endpoint": "http://rustfs.test:9000",
+        "storage_class": "",
+        "acl": "",
+        "upload_part_size": 5,
+        "upload_concurrency": 4,
+        "download_part_size": 5,
+        "download_concurrency": 4
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "ftpd": {
+    "bindings": [
+      {
+        "port": 21,
+        "address": "",
+        "apply_proxy_config": false,
+        "tls_mode": 0,
+        "force_passive_ip": "10.50.0.20",
+        "client_auth_type": 0,
+        "debug": false
+      }
+    ],
+    "banner": "Benvingut al Lab SFTPGo - Etapa 1 (FTP sense xifrat)",
+    "banner_file": "",
+    "passive_port_range": {
+      "start": 50000,
+      "end": 50100
+    },
+    "disable_active_mode": false,
+    "hash_support": 0,
+    "combine_support": 0
+  },
+  "sftpd": {
+    "bindings": [
+      {
+        "port": 0
+      }
+    ]
+  },
+  "webdavd": {
+    "bindings": []
+  },
+  "httpd": {
+    "bindings": [
+      {
+        "port": 8080,
+        "address": "",
+        "enable_web_admin": true,
+        "enable_web_client": true,
+        "enable_rest_api": true,
+        "enable_https": false,
+        "branding": {
+          "name": "SFTPGo Lab - Etapa 1",
+          "short_name": "Lab1"
+        }
+      }
+    ],
+    "hide_support_link": true
+  },
+  "data_provider": {
+    "driver": "sqlite",
+    "name": "/var/lib/sftpgo/sftpgo.db",
+    "users_base_dir": "/srv/sftpgo/data",
+    "track_quota": 2,
+    "password_hashing": {
+      "algo": "bcrypt"
+    }
+  },
+  "telemetry": {
+    "bind_port": 0
+  }
+}

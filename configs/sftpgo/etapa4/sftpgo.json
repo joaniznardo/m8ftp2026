@@ -1,0 +1,84 @@
+{
+  "ftpd": {
+    "bindings": [
+      {
+        "port": 21,
+        "address": "",
+        "apply_proxy_config": false,
+        "tls_mode": 1,
+        "min_tls_version": 12,
+        "force_passive_ip": "10.50.0.20",
+        "client_auth_type": 0,
+        "debug": false,
+        "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+        "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"
+      },
+      {
+        "port": 990,
+        "address": "",
+        "apply_proxy_config": false,
+        "tls_mode": 2,
+        "min_tls_version": 12,
+        "force_passive_ip": "10.50.0.20",
+        "client_auth_type": 0,
+        "debug": false,
+        "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+        "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"
+      }
+    ],
+    "banner": "Benvingut al Lab SFTPGo - Etapa 4 (FTPS/FTPES + OIDC)",
+    "passive_port_range": {
+      "start": 50000,
+      "end": 50100
+    },
+    "disable_active_mode": false,
+    "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+    "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"
+  },
+  "sftpd": {
+    "bindings": [
+      {
+        "port": 0
+      }
+    ]
+  },
+  "webdavd": {
+    "bindings": []
+  },
+  "httpd": {
+    "bindings": [
+      {
+        "port": 8080,
+        "address": "",
+        "enable_web_admin": true,
+        "enable_web_client": true,
+        "enable_rest_api": true,
+        "enable_https": true,
+        "min_tls_version": 12,
+        "branding": {
+          "name": "SFTPGo Lab - Etapa 4 (Keycloak OIDC)",
+          "short_name": "Lab4"
+        },
+        "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+        "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key"
+      }
+    ],
+    "certificate_file": "/etc/sftpgo/certs/demoftp.test.crt",
+    "certificate_key_file": "/etc/sftpgo/certs/demoftp.test.key",
+    "hide_support_link": true
+  },
+  "data_provider": {
+    "driver": "sqlite",
+    "name": "/var/lib/sftpgo/sftpgo.db",
+    "users_base_dir": "/srv/sftpgo/data",
+    "track_quota": 2,
+    "external_auth_hook": "/usr/local/bin/auth-keycloak.sh",
+    "external_auth_scope": 1,
+    "password_hashing": {
+      "algo": "bcrypt"
+    }
+  },
+  "telemetry": {
+    "bind_port": 0
+  }
+}
