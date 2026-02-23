@@ -86,4 +86,6 @@ mkdir -p /etc/nginx/sites-enabled
 ln -sf /etc/nginx/sites-available/proxy-lab /etc/nginx/sites-enabled/proxy-lab
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
-nginx -t && exec nginx -g "daemon off;"
+# Arrancar nginx en background (no exec: el contenidor ja viu via entrypoint.sh)
+nginx -t && nginx
+echo "[proxy] nginx arrencat com a proxy invers."

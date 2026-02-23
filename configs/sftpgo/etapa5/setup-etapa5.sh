@@ -35,14 +35,28 @@ if ! docker exec "$SERVER" ss -tlnp 2>/dev/null | grep -q ":21"; then
     echo "WARN: SFTPGo pot no estar escoltant al port 21. Continua igualment."
 fi
 
-# ─── 3. Configurar client-lftp ────────────────────────────────────────────────
+# ─── 3. Instal·lar el certificat CA als clients ───────────────────────────────
+echo "[etapa5] Instal·lant certificat CA als clients per a TLS..."
+for container in "$CLIENT_LFTP" "$CLIENT_RCLONE"; do
+    docker exec "$container" bash -c "
+        if [ -f /home/ftpuser/certs/rootCA.pem ]; then
+            cp /home/ftpuser/certs/rootCA.pem /usr/local/share/ca-certificates/mkcert-rootCA.crt
+            update-ca-certificates 2>/dev/null || true
+            echo 'CA instal·lada al trust store del sistema.'
+        else
+            echo 'AVIS: rootCA.pem no trobat a /home/ftpuser/certs/'
+        fi
+    " 2>/dev/null || true
+done
+
+# ─── 4. Configurar client-lftp ────────────────────────────────────────────────
 echo "[etapa5] Configurant client-lftp..."
 
-# Crear fitxer de configuració lftp
+# Crear fitxer de configuracio lftp
 docker exec "$CLIENT_LFTP" bash -c "
     mkdir -p /home/ftpuser/.lftp
     cat > /home/ftpuser/.lftp/rc << 'LFTPRC'
-# ─── Configuració lftp per al lab ────────────────────────────────
+# ─── Configuracio lftp per al lab ────────────────────────────────
 set ftp:ssl-allow yes
 set ftp:ssl-force yes
 set ftp:ssl-protect-data yes
@@ -56,7 +70,10 @@ set net:timeout 30
 set cmd:interactive true
 LFTPRC
     chown -R ftpuser:ftpuser /home/ftpuser/.lftp
-    echo '[lftp] Configuració creada a /home/ftpuser/.lftp/rc'
+    # Crear symlink per a root (docker exec s'executa com a root)
+    mkdir -p /root/.lftp
+    ln -sf /home/ftpuser/.lftp/rc /root/.lftp/rc
+    echo '[lftp] Configuracio creada a /home/ftpuser/.lftp/rc (+ symlink a /root/.lftp/rc)'
 "
 
 # Crear script d'exemples lftp
@@ -64,6 +81,7 @@ docker exec "$CLIENT_LFTP" bash -c "
     cat > /home/ftpuser/demo-lftp.sh << 'DEMO'
 #!/bin/bash
 # ─── demo-lftp.sh — Exemples d'ús de lftp ────────────────────────────────────
+export HOME=/home/ftpuser
 FTP_HOST=\"demoftp.test\"
 FTP_USER=\"ftpuser\"
 FTP_PASS=\"ftppassword\"
@@ -104,19 +122,25 @@ DEMO
 
 echo "[etapa5] client-lftp configurat."
 
-# ─── 4. Configurar client-rclone ─────────────────────────────────────────────
+# ─── 5. Configurar client-rclone ─────────────────────────────────────────────
 echo "[etapa5] Configurant client-rclone..."
 
-# Crear fitxer de configuració rclone per a FTP amb TLS
-docker exec "$CLIENT_RCLONE" bash -c "
+# Crear fitxer de configuracio rclone per a FTP amb TLS
+# La contrasenya s'ofusca amb rclone obscure (requerit per rclone)
+docker exec "$CLIENT_RCLONE" bash -c '
     mkdir -p /home/ftpuser/.config/rclone
-    cat > /home/ftpuser/.config/rclone/rclone.conf << 'RCLONECONF'
+    OBSCURED=$(rclone obscure ftppassword 2>/dev/null || echo "")
+    if [ -z "$OBSCURED" ]; then
+        echo "[rclone] AVIS: No s ha pogut ofuscar la contrasenya."
+        OBSCURED="ftppassword"
+    fi
+    cat > /home/ftpuser/.config/rclone/rclone.conf << RCLONECONF
 [demoftp]
 type = ftp
 host = demoftp.test
 port = 21
 user = ftpuser
-pass = \$(rclone obscure ftppassword 2>/dev/null || echo '')
+pass = ${OBSCURED}
 tls = false
 explicit_tls = true
 no_check_certificate = false
@@ -124,18 +148,19 @@ disable_tls13 = false
 concurrency = 4
 skip_inaccessible_subdirs = false
 RCLONECONF
-    echo '[rclone] Config base creada. Generant contrasenya ofuscada...'
-    OBSCURED=\$(rclone obscure ftppassword 2>/dev/null || echo 'ERROR')
-    sed -i \"s|pass = .*|pass = \${OBSCURED}|\" /home/ftpuser/.config/rclone/rclone.conf
     chown -R ftpuser:ftpuser /home/ftpuser/.config
-    echo '[rclone] Configuració creada a /home/ftpuser/.config/rclone/rclone.conf'
-"
+    # Crear symlink per a root (docker exec s executa com a root)
+    mkdir -p /root/.config/rclone
+    ln -sf /home/ftpuser/.config/rclone/rclone.conf /root/.config/rclone/rclone.conf
+    echo "[rclone] Configuracio creada a /home/ftpuser/.config/rclone/rclone.conf (+ symlink a /root/)"
+'
 
 # Crear script d'exemples rclone
 docker exec "$CLIENT_RCLONE" bash -c "
     cat > /home/ftpuser/demo-rclone.sh << 'DEMO'
 #!/bin/bash
 # ─── demo-rclone.sh — Exemples d'ús de rclone ────────────────────────────────
+export RCLONE_CONFIG=/home/ftpuser/.config/rclone/rclone.conf
 REMOTE=\"demoftp:\"
 
 echo '=== Demo rclone — Etapa 5 ==='
@@ -177,13 +202,13 @@ DEMO
 
 echo "[etapa5] client-rclone configurat."
 
-# ─── 5. Verificació bàsica de connectivitat ──────────────────────────────────
+# ─── 6. Verificacio basica de connectivitat ──────────────────────────────────
 echo ""
 echo "[etapa5] Verificant connectivitat DNS des dels clients..."
 docker exec "$CLIENT_LFTP" bash -c "dig ${FTP_HOST} +short 2>/dev/null || nslookup ${FTP_HOST} 2>/dev/null || true"
 docker exec "$CLIENT_RCLONE" bash -c "dig ${FTP_HOST} +short 2>/dev/null || nslookup ${FTP_HOST} 2>/dev/null || true"
 
-# ─── 6. Instruccions finals ───────────────────────────────────────────────────
+# ─── 7. Instruccions finals ───────────────────────────────────────────────────
 echo ""
 echo "=== Etapa 5 configurada. Passos de verificació ==="
 echo ""

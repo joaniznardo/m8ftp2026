@@ -87,13 +87,13 @@ topology:
         - ../configs/coredns/zones:/zones:ro
 
     # ─── RUSTFS / MINIO — S3 backend ────────────────────────────────────────
+    # La imatge minio/minio no té iproute2 (no té 'ip').
+    # La xarxa es configura des de lab.sh via nsenter (com CoreDNS).
+    # El CMD 'server /data --console-address :9001' arranca MinIO.
     rustfs:
       kind: linux
       image: minio/minio:latest
-      binds:
-        - ../configs/sftpgo/etapa3:/etc/sftpgo/etapa3:ro
-      exec:
-        - bash -c "ip addr add 10.50.0.30/24 dev eth1 && ip link set eth1 up && ip route add default via 10.50.0.1 dev eth1 && minio server /data --console-address :9001 &"
+      cmd: "server /data --console-address :9001"
       ports:
         - "9000:9000"
         - "9001:9001"

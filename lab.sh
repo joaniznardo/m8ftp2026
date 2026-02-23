@@ -126,21 +126,22 @@ _required_images_for_stage() {
 
 # ─── Funció: desplegar el lab ─────────────────────────────────────────────────
 
-# ─── Funció: configurar xarxa de CoreDNS (imatge scratch, sense shell) ───────
-# La imatge oficial coredns/coredns no té shell ni iproute2.
+# ─── Funció auxiliar: configurar xarxa via nsenter ───────────────────────────
+# Per a imatges que no tenen shell ni iproute2 (scratch, UBI minimal, etc.)
 # Configurem la xarxa des del host usant nsenter al namespace de xarxa.
-_configure_coredns() {
-    local container="clab-${LAB_NAME}-coredns"
-    local ip="10.50.0.53"
-    local gw="10.50.0.1"
-    local iface="eth1"
+_configure_node_network() {
+    local node_name="$1"
+    local ip="$2"
+    local gw="$3"
+    local iface="${4:-eth1}"
 
-    info "Configurant xarxa de CoreDNS (via nsenter)..."
+    local container="clab-${LAB_NAME}-${node_name}"
+    info "Configurant xarxa de ${node_name} (via nsenter)..."
 
     local pid
     pid=$(docker inspect -f '{{.State.Pid}}' "$container" 2>/dev/null || echo "")
     if [ -z "$pid" ] || [ "$pid" = "0" ]; then
-        warn "No s'ha pogut obtenir el PID de $container. CoreDNS potser no s'ha desplegat."
+        warn "No s'ha pogut obtenir el PID de $container. ${node_name} potser no s'ha desplegat."
         return
     fi
 
@@ -163,7 +164,26 @@ _configure_coredns() {
     sudo nsenter -t "$pid" -n ip link set "$iface" up
     sudo nsenter -t "$pid" -n ip route add default via "$gw" dev "$iface" 2>/dev/null || true
 
-    ok "CoreDNS xarxa configurada: $iface → $ip/24, GW: $gw"
+    ok "${node_name} xarxa configurada: $iface → ${ip}/24, GW: $gw"
+}
+
+# ─── Funció: configurar xarxes post-deploy segons l'etapa ────────────────────
+_post_deploy_network() {
+    local stage="$1"
+
+    # CoreDNS sempre necessita nsenter (imatge scratch, sense shell)
+    _configure_node_network "coredns" "10.50.0.53" "10.50.0.1"
+
+    case "$stage" in
+        3)
+            # MinIO no té iproute2
+            _configure_node_network "rustfs" "10.50.0.30" "10.50.0.1"
+            ;;
+        4)
+            # Keycloak (UBI minimal) no té iproute2
+            _configure_node_network "keycloak" "10.50.0.40" "10.50.0.1"
+            ;;
+    esac
 }
 
 deploy() {
@@ -187,8 +207,8 @@ deploy() {
     # Desplegar
     sudo containerlab deploy --topo "$topo"
 
-    # ─── Post-deploy: configurar xarxa de CoreDNS (imatge scratch, sense shell)
-    _configure_coredns
+    # ─── Post-deploy: configurar xarxes de nodes sense iproute2
+    _post_deploy_network "$stage"
 
     # Guardar l'etapa desplegada
     echo "$stage" > "$STATE_FILE"
@@ -199,8 +219,14 @@ deploy() {
     echo -e "  ${BOLD}Accés al client FileZilla (web):${NC}"
     echo -e "  → ${CYAN}https://localhost:3001/${NC}  (contrasenya: labvnc)"
     echo ""
+
+    # Admin URL: http per etapa 1, https per etapes 2+
+    local admin_proto="http"
+    if [ "$stage" -ge 2 ]; then
+        admin_proto="https"
+    fi
     echo -e "  ${BOLD}Panell d'admin SFTPGo:${NC}"
-    echo -e "  → ${CYAN}http://localhost:8081/web/admin${NC}  (admin / admin)"
+    echo -e "  → ${CYAN}${admin_proto}://localhost:8081/web/admin${NC}  (admin / admin)"
     echo ""
 
     # Ports addicionals per etapa
@@ -307,6 +333,20 @@ certs() {
     echo -e "  ${CYAN}rootCA.pem${NC}        → CA root (per als clients)"
 }
 
+# ─── Funció: executar setup d'una etapa (3-6) ────────────────────────────────
+setup() {
+    local stage="${1:-}"
+    [ -z "$stage" ] && error "Cal especificar l'etapa.\n  Ús: $0 setup <3|4|5|6>"
+
+    local setup_script="$SCRIPT_DIR/configs/sftpgo/etapa${stage}/setup-etapa${stage}.sh"
+    if [ ! -f "$setup_script" ]; then
+        error "No existeix l'script de setup: $setup_script"
+    fi
+
+    header "Executant setup — Etapa $stage"
+    bash "$setup_script"
+}
+
 # ─── Funció: accedir a un node ────────────────────────────────────────────────
 shell() {
     local node="${1:-client}"
@@ -336,6 +376,7 @@ usage() {
     echo -e "    ${GREEN}destroy${NC}            Destrueix el laboratori"
     echo -e "    ${GREEN}status${NC}             Mostra l'estat del lab"
     echo -e "    ${GREEN}certs${NC}              Genera certificats TLS amb mkcert (etapa 2+)"
+    echo -e "    ${GREEN}setup <N>${NC}          Executa l'script de configuració d'una etapa (3-6)"
     echo ""
     echo -e "  ${BOLD}Utilitats:${NC}"
     echo -e "    ${GREEN}shell [node]${NC}       Entra al shell d'un node (default: client)"
@@ -356,6 +397,7 @@ usage() {
     echo -e "  ${BOLD}Exemples:${NC}"
     echo -e "    $0 deploy 1                     # Desplega l'etapa 1 (FTP bàsic)"
     echo -e "    $0 certs && $0 deploy 2          # Genera certs i desplega l'etapa 2"
+    echo -e "    $0 deploy 3 && $0 setup 3        # Desplega i configura l'etapa 3"
     echo -e "    $0 destroy                       # Destrueix el lab actual"
     echo -e "    $0 shell server                  # Shell al servidor SFTPGo"
     echo -e "    $0 build switch                  # Reconstrueix només la imatge switch"
@@ -373,6 +415,7 @@ case "$CMD" in
     destroy) destroy ;;
     status)  status ;;
     certs)   certs ;;
+    setup)   setup "${1:-}" ;;
     shell)   shell "${1:-client}" ;;
     logs)    logs "${1:-server}" ;;
     help|--help|-h) usage ;;

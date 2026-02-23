@@ -24,4 +24,3 @@
 #
 # Vegeu etapa3/instruccions-etapa3.md per als passos detallats.
 
-echo "Etapa 3: RustFS - Llegiu configs/sftpgo/etapa3/README.md"

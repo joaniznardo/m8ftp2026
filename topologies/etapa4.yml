@@ -41,6 +41,7 @@ topology:
         - ../configs/sftpgo/etapa4/sftpgo.json:/etc/sftpgo/sftpgo.json:ro
         - ../certs:/etc/sftpgo/certs:ro
         - ../scripts/server-init.sh:/server-init.sh:ro
+        - ../configs/sftpgo/etapa4/auth-keycloak-placeholder.sh:/usr/local/bin/auth-keycloak.sh
       exec:
         - bash /server-init.sh
       ports:
@@ -87,11 +88,13 @@ topology:
         - ../configs/coredns/zones:/zones:ro
 
     # ─── KEYCLOAK — Autenticació OIDC ────────────────────────────────────────
+    # La imatge oficial quay.io/keycloak no té iproute2 ni curl.
+    # La xarxa es configura des de lab.sh via nsenter (com CoreDNS).
+    # El CMD 'start-dev' arranca Keycloak en mode desenvolupament.
     keycloak:
       kind: linux
       image: quay.io/keycloak/keycloak:latest
-      exec:
-        - bash -c "ip addr add 10.50.0.40/24 dev eth1 && ip link set eth1 up && ip route add default via 10.50.0.1 dev eth1 && /opt/keycloak/bin/kc.sh start-dev --http-port=8080 --hostname=keycloak.test --hostname-strict=false &"
+      cmd: "start-dev --http-port=8080 --hostname=keycloak.test --hostname-strict=false"
       ports:
         - "8180:8080"
       env:
@@ -103,4 +106,4 @@ topology:
     - endpoints: ["switch-lan:eth2", "server:eth1"]
     - endpoints: ["switch-lan:eth3", "client:eth1"]
     - endpoints: ["switch-lan:eth4", "coredns:eth1"]
-    - endpoints: ["switch-lan:eth6", "keycloak:eth1"]
+    - endpoints: ["switch-lan:eth5", "keycloak:eth1"]

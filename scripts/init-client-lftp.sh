@@ -40,4 +40,4 @@ echo "[client-lftp] Xarxa configurada. IP: $NODE_IP, GW: $GW_IP, DNS: $DNS_IP"
 mkdir -p /home/ftpuser/downloads /home/ftpuser/uploads
 chown -R ftpuser:ftpuser /home/ftpuser 2>/dev/null || true
 
-exec tail -f /dev/null
+echo "[client-lftp] Inicialitzacio completada."

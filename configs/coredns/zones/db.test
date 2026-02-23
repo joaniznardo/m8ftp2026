@@ -2,7 +2,7 @@ $ORIGIN test.
 $TTL 300
 
 @       IN  SOA ns1.test. admin.test. (
-                2026022002 ; Serial (YYYYMMDDNN)
+                2026022301 ; Serial (YYYYMMDDNN)
                 3600       ; Refresh
                 900        ; Retry
                 604800     ; Expire
@@ -12,7 +12,7 @@ $TTL 300
 ; ─── Servidors de noms ─────────────────────────────────────────────────────
 @       IN  NS  ns1.test.
 
-; ─── Registres A ───────────────────────────────────────────────────────────
+; ─── Registres A (base — etapes 1-2) ──────────────────────────────────────
 ns1         IN  A   10.50.0.53
 coredns     IN  A   10.50.0.53
 router      IN  A   10.50.0.1
@@ -20,21 +20,21 @@ client      IN  A   10.50.0.10
 server      IN  A   10.50.0.20
 demoftp     IN  A   10.50.0.20
 
-; ─── Etapa 3 ───────────────────────────────────────────────────────────────
-; rustfs     IN  A   10.50.0.30
+; ─── Etapa 3 — RustFS / MinIO ─────────────────────────────────────────────
+rustfs      IN  A   10.50.0.30
 
-; ─── Etapa 4 ───────────────────────────────────────────────────────────────
-; keycloak   IN  A   10.50.0.40
+; ─── Etapa 4 — Keycloak ───────────────────────────────────────────────────
+keycloak    IN  A   10.50.0.40
 
-; ─── Etapa 5 — Clients textuals ────────────────────────────────────────────
-; client-lftp    IN  A   10.50.0.11
-; client-rclone  IN  A   10.50.0.12
+; ─── Etapa 5 — Clients textuals ───────────────────────────────────────────
+client-lftp     IN  A   10.50.0.11
+client-rclone   IN  A   10.50.0.12
 
-; ─── Etapa 6 — Proxy invers + webs ─────────────────────────────────────────
-; proxy      IN  A   10.50.0.60
-; web01      IN  A   10.50.0.61
-; web02      IN  A   10.50.0.62
-; web03      IN  A   10.50.0.63
-; web01.demoftp IN CNAME web01.test.
-; web02.demoftp IN CNAME web02.test.
-; web03.demoftp IN CNAME web03.test.
+; ─── Etapa 6 — Proxy invers + webs ────────────────────────────────────────
+proxy       IN  A   10.50.0.60
+web01       IN  A   10.50.0.61
+web02       IN  A   10.50.0.62
+web03       IN  A   10.50.0.63
+web01.demoftp   IN  CNAME   web01.test.
+web02.demoftp   IN  CNAME   web02.test.
+web03.demoftp   IN  CNAME   web03.test.

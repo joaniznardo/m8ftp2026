@@ -2,7 +2,7 @@ $ORIGIN 0.50.10.in-addr.arpa.
 $TTL 300
 
 @       IN  SOA ns1.test. admin.test. (
-                2026022002 ; Serial
+                2026022301 ; Serial
                 3600
                 900
                 604800
@@ -11,25 +11,25 @@ $TTL 300
 
 @       IN  NS  ns1.test.
 
-; ─── PTR (resolució inversa) ──────────────────────────────────────────────
+; ─── PTR — base (etapes 1-2) ─────────────────────────────────────────────
 1       IN  PTR router.test.
 10      IN  PTR client.test.
 20      IN  PTR server.test.
 20      IN  PTR demoftp.test.
 53      IN  PTR coredns.test.
 
-; ─── Etapa 3 ───────────────────────────────────────────────────────────────
-; 30    IN  PTR rustfs.test.
+; ─── Etapa 3 ──────────────────────────────────────────────────────────────
+30      IN  PTR rustfs.test.
 
-; ─── Etapa 4 ───────────────────────────────────────────────────────────────
-; 40    IN  PTR keycloak.test.
+; ─── Etapa 4 ──────────────────────────────────────────────────────────────
+40      IN  PTR keycloak.test.
 
-; ─── Etapa 5 — Clients textuals ────────────────────────────────────────────
-; 11    IN  PTR client-lftp.test.
-; 12    IN  PTR client-rclone.test.
+; ─── Etapa 5 — Clients textuals ───────────────────────────────────────────
+11      IN  PTR client-lftp.test.
+12      IN  PTR client-rclone.test.
 
-; ─── Etapa 6 — Proxy invers + webs ─────────────────────────────────────────
-; 60    IN  PTR proxy.test.
-; 61    IN  PTR web01.test.
-; 62    IN  PTR web02.test.
-; 63    IN  PTR web03.test.
+; ─── Etapa 6 — Proxy invers + webs ────────────────────────────────────────
+60      IN  PTR proxy.test.
+61      IN  PTR web01.test.
+62      IN  PTR web02.test.
+63      IN  PTR web03.test.

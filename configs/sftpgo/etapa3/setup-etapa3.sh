@@ -1,7 +1,7 @@
 #!/bin/bash
 # ─── setup-etapa3.sh ──────────────────────────────────────────────────────────
 # Configura SFTPGo per a l'Etapa 3: backend S3 amb MinIO/RustFS
-# S'executa des del HOST després de desplegar el lab
+# S'executa des del HOST despres de desplegar el lab: ./lab.sh setup 3
 # Prerequisit: Etapa 2 completada (certificats mkcert existents)
 set -e
 
@@ -10,80 +10,66 @@ SERVER="clab-${LAB_NAME}-server"
 CLIENT="clab-${LAB_NAME}-client"
 MINIO="clab-${LAB_NAME}-rustfs"
 
-MINIO_ENDPOINT="http://rustfs.test:9000"
+MINIO_IP="10.50.0.30"
+MINIO_ENDPOINT="http://${MINIO_IP}:9000"
 MINIO_ACCESS="rustfs-access-key"
 MINIO_SECRET="rustfs-secret-key"
 BUCKET="sftpgo-data"
 
-echo "=== Etapa 3: Configuració S3 (MinIO/RustFS) ==="
+echo "=== Etapa 3: Configuracio S3 (MinIO/RustFS) ==="
 echo ""
 
 # ─── 1. Verificar que el contenidor MinIO existeix ───────────────────────────
 if ! docker ps --format '{{.Names}}' | grep -q "^${MINIO}$"; then
     echo "ERROR: El contenidor '${MINIO}' no s'ha trobat."
     echo "       Assegura't d'haver desplegat l'etapa 3: ./lab.sh deploy 3"
-    echo "       (topologia: topologies/etapa3.yml)"
     exit 1
 fi
 
 echo "[etapa3] Contenidor MinIO: $MINIO trobat."
 
 # ─── 2. Esperar que MinIO estigui disponible ─────────────────────────────────
+# MinIO te curl. Fem health check des de dins del contenidor amb localhost.
 echo "[etapa3] Esperant que MinIO estigui disponible..."
 for i in $(seq 1 30); do
-    if docker exec "$MINIO" curl -sf "${MINIO_ENDPOINT}/minio/health/live" &>/dev/null; then
+    if docker exec "$MINIO" curl -sf "http://localhost:9000/minio/health/live" &>/dev/null; then
         echo "[etapa3] MinIO disponible."
         break
+    fi
+    if [ "$i" -eq 30 ]; then
+        echo "[etapa3] AVIS: MinIO no respon despres de 60s. Continuant igualment..."
     fi
     sleep 2
 done
 
-# ─── 3. Instal·lar mc (MinIO Client) al client ───────────────────────────────
-echo "[etapa3] Instal·lant mc (MinIO Client) al contenidor client..."
-docker exec "$CLIENT" bash -c "
-    if ! command -v mc &>/dev/null; then
-        curl -sf -Lo /usr/local/bin/mc \
-            https://dl.min.io/client/mc/release/linux-amd64/mc
-        chmod +x /usr/local/bin/mc
-        echo 'mc instal·lat.'
-    else
-        echo 'mc ja instal·lat.'
-    fi
-"
+# ─── 3. Crear el bucket sftpgo-data via mc (dins del contenidor MinIO) ───────
+# La imatge minio/minio te mc (MinIO Client) integrat.
+echo "[etapa3] Configurant alias mc i creant bucket '${BUCKET}'..."
+docker exec "$MINIO" mc alias set local \
+    "http://localhost:9000" "$MINIO_ACCESS" "$MINIO_SECRET" --api S3v4 2>/dev/null || true
 
-# ─── 4. Configurar alias mc al client ────────────────────────────────────────
-echo "[etapa3] Configurant alias mc al client..."
-docker exec "$CLIENT" mc alias set rustfs \
-    "$MINIO_ENDPOINT" "$MINIO_ACCESS" "$MINIO_SECRET" --api S3v4 2>/dev/null || true
-
-# ─── 5. Crear el bucket sftpgo-data ──────────────────────────────────────────
-echo "[etapa3] Creant bucket '${BUCKET}'..."
-docker exec "$CLIENT" mc mb "rustfs/${BUCKET}" 2>/dev/null || \
+docker exec "$MINIO" mc mb "local/${BUCKET}" 2>/dev/null || \
     echo "[etapa3] El bucket ja existia."
 
-docker exec "$CLIENT" mc ls rustfs/
+docker exec "$MINIO" mc ls local/
+echo "[etapa3] Bucket '${BUCKET}' creat."
 
-# ─── 6. Aturar SFTPGo i arrancar amb configuració etapa3 ─────────────────────
-echo "[etapa3] Reconfigurando SFTPGo (etapa3 + S3)..."
-docker exec "$SERVER" pkill sftpgo 2>/dev/null || true
-sleep 2
-
-docker exec -d "$SERVER" /usr/bin/sftpgo serve \
-    --config-file /etc/sftpgo/etapa3/sftpgo.json \
-    --log-level info
-
-echo "[etapa3] SFTPGo arrancat amb configuració etapa3."
-
-# ─── 7. Instruccions per crear usuari S3 ─────────────────────────────────────
+# ─── 4. Instruccions per configurar l'usuari S3 ─────────────────────────────
+# SFTPGo ja esta arrancant amb la configuracio correcta (etapa3/sftpgo.json
+# bind-muntat a /etc/sftpgo/sftpgo.json). L'usuari ftpuser ja s'ha creat
+# automaticament per server-init.sh amb filesystem local.
+# Per usar S3, cal modificar l'usuari via l'admin web.
 echo ""
-echo "=== Passos manuals restants ==="
+echo "=== Configuracio completada ==="
+echo ""
+echo "  MinIO/RustFS esta disponible amb el bucket '${BUCKET}' creat."
+echo ""
+echo "  Per configurar l'usuari ftpuser amb backend S3:"
 echo ""
 echo "  1. Obre el panell d'admin SFTPGo: https://localhost:8081/web/admin"
-echo "  2. Inicia sessió com admin/admin"
-echo "  3. Users → Add User → configura el filesystem S3:"
+echo "  2. Inicia sessio com admin/admin"
+echo "  3. Users -> ftpuser -> Edit -> Filesystem -> S3 Compatible"
 echo ""
-echo "     Username:   ftpuser"
-echo "     Storage:    S3 Compatible"
 echo "     Endpoint:   ${MINIO_ENDPOINT}"
 echo "     Bucket:     ${BUCKET}"
 echo "     Region:     us-east-1"
@@ -91,9 +77,11 @@ echo "     Access Key: ${MINIO_ACCESS}"
 echo "     Secret:     ${MINIO_SECRET}"
 echo "     Key prefix: ftpuser/"
 echo ""
-echo "  4. Connecta amb FileZilla (noVNC: http://localhost:8080/vnc.html)"
-echo "     Host: demoftp.test  Port: 21  Xifratge: TLS explícit"
+echo "  4. Connecta amb FileZilla (web): https://localhost:3001"
+echo "     Host: demoftp.test  Port: 21  Xifratge: TLS explicit"
 echo ""
 echo "  5. Verifica que els fitxers pujats apareixen al bucket:"
-echo "     docker exec clab-${LAB_NAME}-client mc ls rustfs/${BUCKET}/ftpuser/"
+echo "     docker exec ${MINIO} mc ls local/${BUCKET}/ftpuser/"
+echo ""
+echo "  MinIO Console: http://localhost:9001  (${MINIO_ACCESS} / ${MINIO_SECRET})"
 echo ""

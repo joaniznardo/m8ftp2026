@@ -39,4 +39,6 @@ echo "[web-nginx] Xarxa configurada. IP: $NODE_IP"
 mkdir -p /var/www/html
 echo "<h1>$(hostname) — Lab SFTPGo Etapa 6</h1>" > /var/www/html/index.html
 
-exec nginx -g "daemon off;"
+# Arrancar nginx en background (no exec: el contenidor ja viu via entrypoint.sh)
+nginx
+echo "[web-nginx] nginx arrencat. IP: $NODE_IP"

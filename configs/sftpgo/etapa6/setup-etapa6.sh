@@ -36,10 +36,8 @@ done
 # ─── 1b. Detectar mode TLS del servidor FTP ──────────────────────────────────
 echo "[etapa6] Detectant mode TLS del servidor FTP..."
 TLS_MODE=$(docker exec "$SERVER" bash -c \
-    'CONFIG=$(cat /proc/$(pgrep -f sftpgo | head -1)/cmdline 2>/dev/null | tr "\0" "\n" | grep -A1 -- "--config-file" | tail -1); \
-     if [ -n "$CONFIG" ] && [ -f "$CONFIG" ]; then \
-         grep -o "\"tls_mode\"[[:space:]]*:[[:space:]]*[0-9]*" "$CONFIG" | head -1 | grep -o "[0-9]*$"; \
-     else echo "0"; fi' 2>/dev/null || echo "0")
+    'grep -o "\"tls_mode\"[[:space:]]*:[[:space:]]*[0-9]*" /etc/sftpgo/sftpgo.json 2>/dev/null \
+     | head -1 | grep -o "[0-9]*$"' 2>/dev/null || echo "0")
 
 # Si no es pot determinar, assumir mode 0 (sense TLS)
 TLS_MODE="${TLS_MODE:-0}"
@@ -220,8 +218,9 @@ NGINX
 echo "[etapa6] Configurant web03 (angie)..."
 
 docker exec "$WEB03" bash -c "
-    # Angie ja està instal·lat (a la imatge sftpgo-lab/web-angie:latest)
-    apt-get install -y --no-install-recommends lftp 2>/dev/null || true
+    # Angie ja esta instal·lat (a la imatge sftpgo-lab/web-angie:latest)
+    # La imatge web-angie es Alpine, lftp ja esta inclosa al Dockerfile
+    # No cal instal·lar res addicional
 
     mkdir -p /var/www/web03
 
@@ -250,7 +249,7 @@ server {
 }
 ANGIE
 
-    angie -t && angie -s reload 2>/dev/null || angie -t && service angie start || true
+    angie -t && (angie -s reload 2>/dev/null || angie 2>/dev/null || true)
     echo '[web03] Angie configurat i iniciat'
 "
 

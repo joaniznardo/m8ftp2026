@@ -39,5 +39,6 @@ echo "[web-angie] Xarxa configurada. IP: $NODE_IP"
 mkdir -p /var/www/web03
 echo "<h1>web03 (Angie) — Lab SFTPGo Etapa 6</h1>" > /var/www/web03/index.html
 
-# Arrancada angie (el procés principal del contenidor)
-exec angie -g "daemon off;"
+# Arrancar angie en background (no exec: el contenidor ja viu via entrypoint.sh)
+angie
+echo "[web-angie] angie arrencat. IP: $NODE_IP"

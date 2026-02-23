@@ -29,4 +29,3 @@
 #
 # Vegeu etapa4/instruccions-etapa4.md per als passos detallats.
 
-echo "Etapa 4: Keycloak OAuth2/OIDC - Llegiu configs/sftpgo/etapa4/README.md"

@@ -39,4 +39,4 @@ echo "[client-rclone] Xarxa configurada. IP: $NODE_IP, GW: $GW_IP, DNS: $DNS_IP"
 mkdir -p /home/ftpuser/downloads /home/ftpuser/uploads /home/ftpuser/.config/rclone
 chown -R ftpuser:ftpuser /home/ftpuser 2>/dev/null || true
 
-exec tail -f /dev/null
+echo "[client-rclone] Inicialitzacio completada."
