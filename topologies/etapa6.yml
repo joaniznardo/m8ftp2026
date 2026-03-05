@@ -41,6 +41,9 @@ topology:
         - ../configs/sftpgo/etapa2/sftpgo.json:/etc/sftpgo/sftpgo.json:ro
         - ../certs:/etc/sftpgo/certs:ro
         - ../scripts/server-init.sh:/server-init.sh:ro
+        - ../data/web01:/srv/sftpgo/data/ftpuser/web01
+        - ../data/web02:/srv/sftpgo/data/ftpuser/web02
+        - ../data/web03:/srv/sftpgo/data/ftpuser/web03
       exec:
         - bash /server-init.sh
       ports:
@@ -107,6 +110,7 @@ topology:
       image: sftpgo-lab/web-nginx:latest
       binds:
         - ../scripts/init-web-nginx.sh:/init-web-nginx.sh:ro
+        - ../data/web01:/var/www/web01
       exec:
         - bash /init-web-nginx.sh
       env:
@@ -120,6 +124,7 @@ topology:
       image: sftpgo-lab/web-nginx:latest
       binds:
         - ../scripts/init-web-nginx.sh:/init-web-nginx.sh:ro
+        - ../data/web02:/var/www/web02
       exec:
         - bash /init-web-nginx.sh
       env:
@@ -133,6 +138,7 @@ topology:
       image: sftpgo-lab/web-angie:latest
       binds:
         - ../scripts/init-web-angie.sh:/init-web-angie.sh:ro
+        - ../data/web03:/var/www/web03
       exec:
         - bash /init-web-angie.sh
       env:
